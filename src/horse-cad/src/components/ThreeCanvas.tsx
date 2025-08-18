@@ -1,5 +1,6 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
+import { OrbitControls } from 'three-stdlib';
 
 const ThreeCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -7,7 +8,11 @@ const ThreeCanvas: React.FC = () => {
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
   const animationIdRef = useRef<number | null>(null);
+  const [fps, setFps] = useState<number>(60);
+  const [showPerformance, setShowPerformance] = useState<boolean>(false);
+  const fpsCounterRef = useRef<{ frames: number; lastTime: number }>({ frames: 0, lastTime: 0 });
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -27,6 +32,17 @@ const ThreeCanvas: React.FC = () => {
     camera.position.set(5, 5, 5);
     camera.lookAt(0, 0, 0);
     cameraRef.current = camera;
+
+    // OrbitControls setup
+    const controls = new OrbitControls(camera, canvasRef.current);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.screenSpacePanning = false;
+    controls.minDistance = 0.1;
+    controls.maxDistance = 1000;
+    controls.maxPolarAngle = Math.PI;
+    controls.target.set(0, 0, 0);
+    controlsRef.current = controls;
 
     // Renderer setup
     const renderer = new THREE.WebGLRenderer({
@@ -86,15 +102,44 @@ const ThreeCanvas: React.FC = () => {
     plane.receiveShadow = true;
     scene.add(plane);
 
+    // Performance monitoring
+    const updateFPS = () => {
+      const now = performance.now();
+      fpsCounterRef.current.frames++;
+      
+      if (now >= fpsCounterRef.current.lastTime + 1000) {
+        const currentFps = Math.round((fpsCounterRef.current.frames * 1000) / (now - fpsCounterRef.current.lastTime));
+        setFps(currentFps);
+        fpsCounterRef.current.frames = 0;
+        fpsCounterRef.current.lastTime = now;
+        
+        // Auto-adjust quality based on performance
+        if (currentFps < 30 && controls.enableDamping) {
+          controls.dampingFactor = 0.1; // Reduce damping for better performance
+        } else if (currentFps > 50 && controls.dampingFactor > 0.05) {
+          controls.dampingFactor = 0.05; // Restore smooth damping
+        }
+      }
+    };
+
     // Animation loop
     const animate = () => {
       animationIdRef.current = requestAnimationFrame(animate);
 
-      // Rotate the cube
-      if (cube) {
+      // Update controls
+      controls.update();
+
+      // Rotate the cube (slower when controls are active)
+      if (cube && !controls.enabled) {
         cube.rotation.x += 0.01;
         cube.rotation.y += 0.01;
+      } else if (cube) {
+        cube.rotation.x += 0.005;
+        cube.rotation.y += 0.005;
       }
+
+      // Performance monitoring
+      updateFPS();
 
       // Render the scene
       renderer.render(scene, camera);
@@ -134,6 +179,9 @@ const ThreeCanvas: React.FC = () => {
       if (animationIdRef.current) {
         cancelAnimationFrame(animationIdRef.current);
       }
+      if (controlsRef.current) {
+        controlsRef.current.dispose();
+      }
       resizeObserver.disconnect();
       window.removeEventListener('resize', handleResize);
       
@@ -156,12 +204,111 @@ const ThreeCanvas: React.FC = () => {
     };
   }, []);
 
+  // Camera control functions
+  const resetCamera = () => {
+    if (cameraRef.current && controlsRef.current) {
+      cameraRef.current.position.set(5, 5, 5);
+      controlsRef.current.target.set(0, 0, 0);
+      controlsRef.current.update();
+    }
+  };
+
+  const setViewPreset = (preset: 'top' | 'front' | 'right' | 'isometric') => {
+    if (!cameraRef.current || !controlsRef.current) return;
+
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    const distance = 8;
+
+    switch (preset) {
+      case 'top':
+        camera.position.set(0, distance, 0);
+        break;
+      case 'front':
+        camera.position.set(0, 0, distance);
+        break;
+      case 'right':
+        camera.position.set(distance, 0, 0);
+        break;
+      case 'isometric':
+        camera.position.set(distance * 0.7, distance * 0.7, distance * 0.7);
+        break;
+    }
+
+    controls.target.set(0, 0, 0);
+    controls.update();
+  };
+
   return (
     <div ref={containerRef} className="h-full w-full relative bg-gray-900">
       <div className="absolute top-0 left-0 right-0 h-8 bg-gray-800 border-b border-gray-700 flex items-center px-3 z-10">
         <span className="text-sm text-gray-300 font-medium">3D Viewport</span>
+        
+        {/* View Controls */}
+        <div className="ml-4 flex items-center space-x-1">
+          <button
+            onClick={resetCamera}
+            className="px-2 py-0.5 text-xs bg-gray-700 text-gray-200 rounded hover:bg-gray-600 transition-colors"
+            title="Reset Camera"
+          >
+            Reset
+          </button>
+          
+          <div className="flex items-center space-x-0.5">
+            <button
+              onClick={() => setViewPreset('top')}
+              className="px-1.5 py-0.5 text-xs bg-gray-700 text-gray-200 rounded hover:bg-gray-600 transition-colors"
+              title="Top View"
+            >
+              T
+            </button>
+            <button
+              onClick={() => setViewPreset('front')}
+              className="px-1.5 py-0.5 text-xs bg-gray-700 text-gray-200 rounded hover:bg-gray-600 transition-colors"
+              title="Front View"
+            >
+              F
+            </button>
+            <button
+              onClick={() => setViewPreset('right')}
+              className="px-1.5 py-0.5 text-xs bg-gray-700 text-gray-200 rounded hover:bg-gray-600 transition-colors"
+              title="Right View"
+            >
+              R
+            </button>
+            <button
+              onClick={() => setViewPreset('isometric')}
+              className="px-1.5 py-0.5 text-xs bg-gray-700 text-gray-200 rounded hover:bg-gray-600 transition-colors"
+              title="Isometric View"
+            >
+              ISO
+            </button>
+          </div>
+        </div>
+
         <div className="ml-auto flex items-center space-x-2">
-          <span className="text-xs text-gray-400">WebGL</span>
+          {/* Performance Toggle */}
+          <button
+            onClick={() => setShowPerformance(!showPerformance)}
+            className="text-xs text-gray-400 hover:text-gray-300 transition-colors"
+            title="Toggle Performance Info"
+          >
+            {showPerformance ? `${fps} FPS` : 'WebGL'}
+          </button>
+          
+          {/* Performance Indicator */}
+          {showPerformance && (
+            <div className="flex items-center space-x-1">
+              <div className={`w-2 h-2 rounded-full ${
+                fps > 50 ? 'bg-green-400' : 
+                fps > 30 ? 'bg-yellow-400' : 
+                'bg-red-400'
+              }`} />
+              <span className="text-xs text-gray-400">
+                {fps < 30 ? 'Performance Mode' : 'Smooth'}
+              </span>
+            </div>
+          )}
         </div>
       </div>
       <canvas
