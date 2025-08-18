@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 
 const ThreeCanvas: React.FC = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -103,19 +104,30 @@ const ThreeCanvas: React.FC = () => {
 
     // Handle resize
     const handleResize = () => {
-      if (!canvasRef.current || !camera || !renderer) return;
+      if (!containerRef.current || !camera || !renderer) return;
 
-      const width = canvasRef.current.clientWidth;
-      const height = canvasRef.current.clientHeight;
+      // Get the container dimensions (excluding the header)
+      const container = containerRef.current;
+      const width = container.clientWidth;
+      const height = container.clientHeight - 32; // Subtract header height (2rem = 32px)
 
+      // Update camera aspect ratio
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
+
+      // Update renderer size
       renderer.setSize(width, height);
+      renderer.setPixelRatio(window.devicePixelRatio);
     };
 
-    // Set up resize observer
+    // Set up resize observer on the container
     const resizeObserver = new ResizeObserver(handleResize);
-    resizeObserver.observe(canvasRef.current);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    // Also listen to window resize as a fallback
+    window.addEventListener('resize', handleResize);
 
     // Cleanup
     return () => {
@@ -123,6 +135,7 @@ const ThreeCanvas: React.FC = () => {
         cancelAnimationFrame(animationIdRef.current);
       }
       resizeObserver.disconnect();
+      window.removeEventListener('resize', handleResize);
       
       // Dispose of Three.js objects
       if (rendererRef.current) {
@@ -144,7 +157,7 @@ const ThreeCanvas: React.FC = () => {
   }, []);
 
   return (
-    <div className="h-full w-full relative bg-gray-900">
+    <div ref={containerRef} className="h-full w-full relative bg-gray-900">
       <div className="absolute top-0 left-0 right-0 h-8 bg-gray-800 border-b border-gray-700 flex items-center px-3 z-10">
         <span className="text-sm text-gray-300 font-medium">3D Viewport</span>
         <div className="ml-auto flex items-center space-x-2">
@@ -153,7 +166,7 @@ const ThreeCanvas: React.FC = () => {
       </div>
       <canvas
         ref={canvasRef}
-        className="w-full h-[calc(100%-2rem)] mt-8 block"
+        className="absolute top-8 left-0 w-full h-[calc(100%-2rem)] block"
         style={{ display: 'block' }}
       />
     </div>
