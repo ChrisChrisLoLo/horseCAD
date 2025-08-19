@@ -41,9 +41,18 @@ const LogPanel: React.FC<LogPanelProps> = ({ logs = [], onClear }) => {
   
   const [filter, setFilter] = useState<'all' | 'info' | 'warning' | 'error' | 'debug'>('all');
   const logContainerRef = useRef<HTMLDivElement>(null);
+  const listenerSetupRef = useRef(false);
 
   // Listen for Tauri log events
   useEffect(() => {
+    // Prevent multiple listener setups
+    // This check ensures we only set up the listener once
+    // This is particlarly useful in strict mode where components may mount/unmount multiple times
+    if (listenerSetupRef.current) {
+      return;
+    }
+    listenerSetupRef.current = true;
+
     let unlisten: (() => void) | undefined;
 
     const setupLogListener = async () => {
@@ -91,6 +100,7 @@ const LogPanel: React.FC<LogPanelProps> = ({ logs = [], onClear }) => {
 
     // Cleanup function to remove event listener
     return () => {
+      listenerSetupRef.current = false;
       if (unlisten) {
         unlisten();
       }
