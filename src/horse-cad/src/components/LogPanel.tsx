@@ -44,9 +44,11 @@ const LogPanel: React.FC<LogPanelProps> = ({ logs = [], onClear }) => {
 
   // Listen for Tauri log events
   useEffect(() => {
+    let unlisten: (() => void) | undefined;
+
     const setupLogListener = async () => {
       try {
-        const unlisten = await listen<{
+        unlisten = await listen<{
           timestamp: string;
           level: string;
           message: string;
@@ -73,8 +75,6 @@ const LogPanel: React.FC<LogPanelProps> = ({ logs = [], onClear }) => {
           message: 'Connected to Tauri backend, listening for compilation logs',
           source: 'Frontend'
         }]);
-
-        return unlisten;
       } catch (error) {
         console.error('Failed to setup Tauri log listener:', error);
         setInternalLogs(prev => [...prev, {
@@ -88,6 +88,13 @@ const LogPanel: React.FC<LogPanelProps> = ({ logs = [], onClear }) => {
     };
 
     setupLogListener();
+
+    // Cleanup function to remove event listener
+    return () => {
+      if (unlisten) {
+        unlisten();
+      }
+    };
   }, []);
 
   // Use provided logs or internal logs
@@ -151,30 +158,6 @@ const LogPanel: React.FC<LogPanelProps> = ({ logs = [], onClear }) => {
     }
   };
 
-  const addTestLog = () => {
-    const testMessages = [
-      'Script execution started',
-      'Variable "radius" assigned value 5.0',
-      'Function "calculateArea" called',
-      'Rendering 3D object to canvas',
-      'Memory usage: 45.2 MB'
-    ];
-    
-    const levels: LogEntry['level'][] = ['info', 'debug', 'warning', 'error'];
-    const randomMessage = testMessages[Math.floor(Math.random() * testMessages.length)];
-    const randomLevel = levels[Math.floor(Math.random() * levels.length)];
-    
-    const newLog: LogEntry = {
-      id: Date.now(),
-      timestamp: new Date(),
-      level: randomLevel,
-      message: randomMessage,
-      source: 'Test'
-    };
-
-    setInternalLogs(prev => [...prev, newLog]);
-  };
-
   return (
     <div className="h-full w-full bg-gray-900 flex flex-col">
       {/* Header */}
@@ -205,12 +188,6 @@ const LogPanel: React.FC<LogPanelProps> = ({ logs = [], onClear }) => {
 
         {/* Action buttons */}
         <div className="ml-auto flex items-center space-x-2">
-          <button
-            onClick={addTestLog}
-            className="px-2 py-0.5 text-xs bg-green-700 text-white rounded hover:bg-green-600 transition-colors"
-          >
-            Test Log
-          </button>
           <button
             onClick={handleClear}
             className="px-2 py-0.5 text-xs bg-red-700 text-white rounded hover:bg-red-600 transition-colors"

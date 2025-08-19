@@ -52,8 +52,7 @@ export const MeshProvider: React.FC<MeshProviderProps> = ({ children }) => {
     let shouldProceed = false;
     setCompilationState(prev => {
       if (prev.isCompiling) {
-        console.log('Compilation already in progress, skipping');
-        return prev; // Return unchanged state
+        return prev; // Return unchanged state - compilation already in progress
       }
       shouldProceed = true;
       return {
@@ -67,11 +66,7 @@ export const MeshProvider: React.FC<MeshProviderProps> = ({ children }) => {
       return; // Exit early if compilation is already in progress
     }
 
-    console.log('Starting compilation with parameters:', { depth, scale, center });
-    console.log('Code to compile:', code);
-
     try {
-      console.log('Invoking Tauri compile_script function...');
       const result = await invoke<{
         success: boolean;
         stl_data?: number[];
@@ -84,11 +79,7 @@ export const MeshProvider: React.FC<MeshProviderProps> = ({ children }) => {
         center,
       });
 
-      console.log('Received result from Tauri:', result);
-
       if (result.success && result.stl_data && result.triangle_count !== undefined) {
-        console.log(`Compilation successful! Generated ${result.triangle_count} triangles, STL data size: ${result.stl_data.length} bytes`);
-        
         const stlData = new Uint8Array(result.stl_data);
         const newMeshData: MeshData = {
           stlData,
@@ -103,13 +94,10 @@ export const MeshProvider: React.FC<MeshProviderProps> = ({ children }) => {
           error: null,
           lastCompiled: Date.now(),
         }));
-
-        console.log('Mesh data updated successfully');
       } else {
         throw new Error(result.error || 'Compilation failed');
       }
     } catch (error) {
-      console.error('Compilation error:', error);
       setCompilationState(prev => ({
         ...prev,
         isCompiling: false,
