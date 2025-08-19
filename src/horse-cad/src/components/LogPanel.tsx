@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { listen } from '@tauri-apps/api/event';
 
 export interface LogEntry {
   id: number;
@@ -40,6 +41,54 @@ const LogPanel: React.FC<LogPanelProps> = ({ logs = [], onClear }) => {
   
   const [filter, setFilter] = useState<'all' | 'info' | 'warning' | 'error' | 'debug'>('all');
   const logContainerRef = useRef<HTMLDivElement>(null);
+
+  // Listen for Tauri log events
+  useEffect(() => {
+    const setupLogListener = async () => {
+      try {
+        const unlisten = await listen<{
+          timestamp: string;
+          level: string;
+          message: string;
+          source?: string;
+        }>('log_entry', (event) => {
+          console.log('Received log from Tauri:', event.payload);
+          
+          const newLog: LogEntry = {
+            id: Date.now() + Math.random(), // Ensure unique ID
+            timestamp: new Date(event.payload.timestamp),
+            level: event.payload.level as LogEntry['level'],
+            message: event.payload.message,
+            source: event.payload.source
+          };
+
+          setInternalLogs(prev => [...prev, newLog]);
+        });
+
+        // Add initial frontend log
+        setInternalLogs(prev => [...prev, {
+          id: Date.now(),
+          timestamp: new Date(),
+          level: 'info',
+          message: 'Connected to Tauri backend, listening for compilation logs',
+          source: 'Frontend'
+        }]);
+
+        return unlisten;
+      } catch (error) {
+        console.error('Failed to setup Tauri log listener:', error);
+        setInternalLogs(prev => [...prev, {
+          id: Date.now(),
+          timestamp: new Date(),
+          level: 'error',
+          message: `Failed to connect to Tauri backend: ${error}`,
+          source: 'Frontend'
+        }]);
+      }
+    };
+
+    setupLogListener();
+  }, []);
 
   // Use provided logs or internal logs
   const displayLogs = logs.length > 0 ? logs : internalLogs;

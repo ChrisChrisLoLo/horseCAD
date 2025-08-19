@@ -1,6 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three-stdlib';
+import { useMesh } from '../contexts/MeshContext';
+import { STLParser } from '../utils/stlParser';
 
 const ThreeCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -10,9 +12,11 @@ const ThreeCanvas: React.FC = () => {
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const animationIdRef = useRef<number | null>(null);
+  const currentMeshRef = useRef<THREE.Mesh | null>(null);
   const [fps, setFps] = useState<number>(60);
   const [showPerformance, setShowPerformance] = useState<boolean>(false);
   const fpsCounterRef = useRef<{ frames: number; lastTime: number }>({ frames: 0, lastTime: 0 });
+  const { meshData, compilationState } = useMesh();
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -75,20 +79,7 @@ const ThreeCanvas: React.FC = () => {
     const axesHelper = new THREE.AxesHelper(2);
     scene.add(axesHelper);
 
-    // Example geometry - a rotating cube
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
-    const material = new THREE.MeshLambertMaterial({ 
-      color: 0x00ff88,
-      transparent: true,
-      opacity: 0.8
-    });
-    const cube = geometry ? new THREE.Mesh(geometry, material) : null;
-    if (cube) {
-      cube.position.set(0, 0.5, 0);
-      cube.castShadow = true;
-      cube.receiveShadow = true;
-      scene.add(cube);
-    }
+    // No default geometry - will be replaced by generated mesh
 
     // Ground plane
     const planeGeometry = new THREE.PlaneGeometry(10, 10);
@@ -128,15 +119,6 @@ const ThreeCanvas: React.FC = () => {
 
       // Update controls
       controls.update();
-
-      // Rotate the cube (slower when controls are active)
-      if (cube && !controls.enabled) {
-        cube.rotation.x += 0.01;
-        cube.rotation.y += 0.01;
-      } else if (cube) {
-        cube.rotation.x += 0.005;
-        cube.rotation.y += 0.005;
-      }
 
       // Performance monitoring
       updateFPS();
@@ -203,6 +185,50 @@ const ThreeCanvas: React.FC = () => {
       }
     };
   }, []);
+
+  // Effect to handle mesh updates
+  useEffect(() => {
+    if (!meshData || !sceneRef.current) return;
+
+    try {
+      // Remove existing mesh
+      if (currentMeshRef.current) {
+        sceneRef.current.remove(currentMeshRef.current);
+        currentMeshRef.current.geometry.dispose();
+        if (Array.isArray(currentMeshRef.current.material)) {
+          currentMeshRef.current.material.forEach(material => material.dispose());
+        } else {
+          currentMeshRef.current.material.dispose();
+        }
+        currentMeshRef.current = null;
+      }
+
+      // Create new mesh from STL data
+      const newMesh = STLParser.createMeshFromSTL(meshData.stlData);
+      newMesh.castShadow = true;
+      newMesh.receiveShadow = true;
+
+      // Add to scene
+      sceneRef.current.add(newMesh);
+      currentMeshRef.current = newMesh;
+
+      // Auto-fit camera to mesh
+      const box = new THREE.Box3().setFromObject(newMesh);
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      
+      if (cameraRef.current && controlsRef.current && maxDim > 0) {
+        const distance = maxDim * 2;
+        cameraRef.current.position.set(distance, distance, distance);
+        controlsRef.current.target.copy(box.getCenter(new THREE.Vector3()));
+        controlsRef.current.update();
+      }
+
+      console.log(`Mesh loaded: ${meshData.triangleCount} triangles`);
+    } catch (error) {
+      console.error('Failed to load mesh:', error);
+    }
+  }, [meshData]);
 
   // Camera control functions
   const resetCamera = () => {
@@ -287,6 +313,16 @@ const ThreeCanvas: React.FC = () => {
         </div>
 
         <div className="ml-auto flex items-center space-x-2">
+          {/* Mesh Info */}
+          {meshData && (
+            <div className="flex items-center space-x-1">
+              <div className="w-2 h-2 bg-blue-400 rounded-full" />
+              <span className="text-xs text-blue-400">
+                {meshData.triangleCount.toLocaleString()} triangles
+              </span>
+            </div>
+          )}
+          
           {/* Performance Toggle */}
           <button
             onClick={() => setShowPerformance(!showPerformance)}

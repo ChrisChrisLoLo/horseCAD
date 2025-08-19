@@ -1,9 +1,23 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import * as monaco from 'monaco-editor';
+import { useMesh } from '../contexts/MeshContext';
 
 const CodeEditor: React.FC = () => {
   const editorRef = useRef<HTMLDivElement>(null);
   const monacoEditorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const debounceTimeoutRef = useRef<number | null>(null);
+  const { compileScript, compilationState } = useMesh();
+
+  // Debounced compilation function
+  const debouncedCompile = useCallback((code: string) => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    debounceTimeoutRef.current = window.setTimeout(() => {
+      compileScript(code);
+    }, 750); // 750ms debounce
+  }, [compileScript]);
 
   useEffect(() => {
     if (editorRef.current) {
@@ -95,19 +109,13 @@ const CodeEditor: React.FC = () => {
       // Create the editor
       monacoEditorRef.current = monaco.editor.create(editorRef.current, {
         value: `// Welcome to HorseCAD Rhai Editor
-// Write your Rhai scripts here
+// Create 3D shapes using fidget functions
 
-fn main() {
-    let message = "Hello, HorseCAD!";
-    print(message);
-    
-    // Example: Create a simple shape
-    let radius = 5.0;
-    let area = 3.14159 * radius * radius;
-    print("Circle area: " + area);
-}
+// Create a simple sphere
+let sphere = sphere(1.0);
 
-main();`,
+// Draw the shape to generate a 3D mesh
+draw(sphere);`,
         language: 'rhai',
         theme: 'vs-dark',
         fontSize: 14,
@@ -185,25 +193,76 @@ main();`,
               insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
               documentation: 'Print function',
               range: range
+            },
+            {
+              label: 'draw',
+              kind: monaco.languages.CompletionItemKind.Function,
+              insertText: 'draw(${1:shape});',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              documentation: 'Draw function - renders a shape to 3D mesh',
+              range: range
             }
           ];
 
           return { suggestions };
         }
       });
-    }
 
-    return () => {
-      if (monacoEditorRef.current) {
-        monacoEditorRef.current.dispose();
-      }
-    };
-  }, []);
+      // Add change listener for debounced compilation
+      const changeListener = monacoEditorRef.current.onDidChangeModelContent(() => {
+        const code = monacoEditorRef.current?.getValue() || '';
+        console.log('Monaco editor content changed, triggering compilation');
+        debouncedCompile(code);
+      });
+
+      // Focus the editor
+      monacoEditorRef.current.focus();
+
+      // Trigger initial compilation
+      const initialCode = monacoEditorRef.current.getValue();
+      console.log('Initial code loaded, triggering compilation');
+      debouncedCompile(initialCode);
+
+      // Cleanup
+      return () => {
+        changeListener.dispose();
+        if (monacoEditorRef.current) {
+          monacoEditorRef.current.dispose();
+        }
+      };
+    }
+  }, [debouncedCompile]);
 
   return (
     <div className="h-full w-full">
       <div className="h-8 bg-gray-800 border-b border-gray-700 flex items-center px-3">
         <span className="text-sm text-gray-300 font-medium">Rhai Script Editor</span>
+        
+        {/* Compilation Status */}
+        <div className="ml-auto flex items-center space-x-2">
+          {compilationState.isCompiling && (
+            <div className="flex items-center space-x-1">
+              <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
+              <span className="text-xs text-yellow-400">Compiling...</span>
+            </div>
+          )}
+          
+          {compilationState.error && (
+            <div className="flex items-center space-x-1">
+              <div className="w-2 h-2 bg-red-400 rounded-full" />
+              <span className="text-xs text-red-400" title={compilationState.error}>
+                Error
+              </span>
+            </div>
+          )}
+          
+          {!compilationState.isCompiling && !compilationState.error && compilationState.lastCompiled > 0 && (
+            <div className="flex items-center space-x-1">
+              <div className="w-2 h-2 bg-green-400 rounded-full" />
+              <span className="text-xs text-green-400">Ready</span>
+            </div>
+          )}
+        </div>
       </div>
       <div ref={editorRef} className="h-[calc(100%-2rem)] w-full" />
     </div>

@@ -9,6 +9,7 @@ use fidget::{
     vm::VmShape,
 };
 use nalgebra::{Scale3, Translation3};
+use rhai::{Dynamic, EvalAltResult, NativeCallContext};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 
@@ -156,7 +157,7 @@ fn compile_rhai_script(code: &str) -> Result<(Context, fidget::context::Node)> {
     // Register the draw function
     engine.register_fn(
         "draw",
-        move |ctx: rhai::NativeCallContext, d: rhai::Dynamic| -> Result<(), Box<rhai::EvalAltResult>> {
+        move |ctx: NativeCallContext, d: Dynamic| -> Result<(), Box<EvalAltResult>> {
             let tree = Tree::from_dynamic(&ctx, d, None)?;
             let mut out = out_clone.lock().unwrap();
             if out.is_some() {
