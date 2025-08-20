@@ -72,8 +72,8 @@ const ThreeCanvas: React.FC = () => {
     scene.add(directionalLight);
 
     // Grid helper
-    const gridHelper = new THREE.GridHelper(10, 10, 0x444444, 0x222222);
-    scene.add(gridHelper);
+    // const gridHelper = new THREE.GridHelper(10, 10, 0x444444, 0x222222);
+    // scene.add(gridHelper);
 
     // Axes helper
     const axesHelper = new THREE.AxesHelper(2);
@@ -82,16 +82,16 @@ const ThreeCanvas: React.FC = () => {
     // No default geometry - will be replaced by generated mesh
 
     // Ground plane
-    const planeGeometry = new THREE.PlaneGeometry(10, 10);
-    const planeMaterial = new THREE.MeshLambertMaterial({ 
-      color: 0x333333,
-      transparent: true,
-      opacity: 0.5
-    });
-    const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-    plane.rotation.x = -Math.PI / 2;
-    plane.receiveShadow = true;
-    scene.add(plane);
+    // const planeGeometry = new THREE.PlaneGeometry(10, 10);
+    // const planeMaterial = new THREE.MeshLambertMaterial({ 
+    //   color: 0x333333,
+    //   transparent: true,
+    //   opacity: 0.5
+    // });
+    // const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+    // plane.rotation.x = -Math.PI / 2;
+    // plane.receiveShadow = true;
+    // scene.add(plane);
 
     // Performance monitoring
     const updateFPS = () => {
