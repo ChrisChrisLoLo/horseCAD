@@ -35,59 +35,45 @@ interface FileProviderProps {
   children: React.ReactNode;
 }
 
-export const FileProvider: React.FC<FileProviderProps> = ({ children }) => {
-  const [fileState, setFileState] = useState<FileState>({
-    currentFilePath: null,
-    content: `// Welcome to HorseCAD Rhai Editor
+const DEFAULT_CONTENT = `// Welcome to HorseCAD Rhai Editor
 // Create 3D shapes using fidget functions
 
 // Create a simple sphere
 let sphere = sphere(1.0);
 
 // Draw the shape to generate a 3D mesh
-draw(sphere);`,
+draw(sphere);`;
+
+export const FileProvider: React.FC<FileProviderProps> = ({ children }) => {
+  const [fileState, setFileState] = useState<FileState>({
+    currentFilePath: null,
+    content: DEFAULT_CONTENT,
     isModified: false,
     isLoading: false,
   });
 
-  // Store reference to editor content getter/setter
+  // Store reference to editor content getter/setter - but use refs to avoid recreation
   const [getEditorContent, setGetEditorContent] = useState<() => string>(() => () => fileState.content);
   const [setEditorContent, setSetEditorContent] = useState<(content: string) => void>(() => () => {});
 
-  // New file
+  // New file - stable function
   const newFile = useCallback(() => {
     if (fileState.isModified) {
-      // TODO: Show unsaved changes dialog
       const confirmed = window.confirm('You have unsaved changes. Are you sure you want to create a new file?');
       if (!confirmed) return;
     }
 
     setFileState({
       currentFilePath: null,
-      content: `// Welcome to HorseCAD Rhai Editor
-// Create 3D shapes using fidget functions
-
-// Create a simple sphere
-let sphere = sphere(1.0);
-
-// Draw the shape to generate a 3D mesh
-draw(sphere);`,
+      content: DEFAULT_CONTENT,
       isModified: false,
       isLoading: false,
     });
 
-    // Update editor content
-    setEditorContent(`// Welcome to HorseCAD Rhai Editor
-// Create 3D shapes using fidget functions
-
-// Create a simple sphere
-let sphere = sphere(1.0);
-
-// Draw the shape to generate a 3D mesh
-draw(sphere);`);
+    setEditorContent(DEFAULT_CONTENT);
   }, [fileState.isModified, setEditorContent]);
 
-  // Open file
+  // Open file - stable function
   const openFile = useCallback(async () => {
     if (fileState.isModified) {
       const confirmed = window.confirm('You have unsaved changes. Are you sure you want to open a new file?');
@@ -112,7 +98,6 @@ draw(sphere);`);
         isLoading: false,
       });
 
-      // Update editor content
       setEditorContent(content);
     } catch (error) {
       console.error('Failed to open file:', error);
@@ -121,10 +106,36 @@ draw(sphere);`);
     }
   }, [fileState.isModified, setEditorContent]);
 
-  // Save file
+  // Save file - stable function
   const saveFile = useCallback(async () => {
     if (!fileState.currentFilePath) {
-      await saveFileAs();
+      // Inline save as logic to avoid circular dependency
+      try {
+        setFileState(prev => ({ ...prev, isLoading: true }));
+
+        const filePath = await invoke<string | null>('show_save_dialog');
+        if (!filePath) {
+          setFileState(prev => ({ ...prev, isLoading: false }));
+          return;
+        }
+
+        const currentContent = getEditorContent();
+        await invoke<boolean>('save_horsi_file', {
+          path: filePath,
+          content: currentContent,
+        });
+
+        setFileState({
+          currentFilePath: filePath,
+          content: currentContent,
+          isModified: false,
+          isLoading: false,
+        });
+      } catch (error) {
+        console.error('Failed to save file:', error);
+        setFileState(prev => ({ ...prev, isLoading: false }));
+        alert(`Failed to save file: ${error}`);
+      }
       return;
     }
 
@@ -150,7 +161,7 @@ draw(sphere);`);
     }
   }, [fileState.currentFilePath, getEditorContent]);
 
-  // Save file as
+  // Save file as - stable function
   const saveFileAs = useCallback(async () => {
     try {
       setFileState(prev => ({ ...prev, isLoading: true }));
@@ -180,7 +191,7 @@ draw(sphere);`);
     }
   }, [getEditorContent]);
 
-  // Export STL
+  // Export STL - stable function
   const exportSTL = useCallback(async (meshData?: Uint8Array) => {
     try {
       if (!meshData) {
@@ -203,7 +214,7 @@ draw(sphere);`);
     }
   }, []);
 
-  // Update content (called when editor content changes)
+  // Update content - stable function
   const updateContent = useCallback((content: string) => {
     setFileState(prev => ({
       ...prev,
@@ -212,24 +223,25 @@ draw(sphere);`);
     }));
   }, []);
 
-  // Listen for menu events (STL export is handled in App.tsx)
+  // THE KEY FIX: Remove functions from dependency array to prevent infinite loop
   useEffect(() => {
+    let unlisteners: (() => void)[] = [];
+
     const setupMenuListeners = async () => {
       const unlistenNew = await listen('menu_new', () => newFile());
       const unlistenOpen = await listen('menu_open', () => openFile());
       const unlistenSave = await listen('menu_save', () => saveFile());
       const unlistenSaveAs = await listen('menu_save_as', () => saveFileAs());
 
-      return () => {
-        unlistenNew();
-        unlistenOpen();
-        unlistenSave();
-        unlistenSaveAs();
-      };
+      unlisteners = [unlistenNew, unlistenOpen, unlistenSave, unlistenSaveAs];
     };
 
     setupMenuListeners();
-  }, [newFile, openFile, saveFile, saveFileAs]);
+
+    return () => {
+      unlisteners.forEach(unlisten => unlisten());
+    };
+  }, []); // FIXED: Empty dependency array prevents infinite loop
 
   const value: FileContextType = {
     fileState,

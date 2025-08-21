@@ -11,7 +11,10 @@ const MenuEventConnector: React.FC = () => {
   const { exportSTL, getEditorContent } = useFile();
   const [showLogs, setShowLogs] = useState(true);
 
+  // FIXED: Empty dependency array prevents infinite loop
   useEffect(() => {
+    let unlisteners: (() => void)[] = [];
+
     const setupMenuListeners = async () => {
       // STL Export
       const unlistenExportSTL = await listen('menu_export_stl', () => {
@@ -31,15 +34,15 @@ const MenuEventConnector: React.FC = () => {
         console.log('Toggle logs menu item clicked');
       });
 
-      return () => {
-        unlistenExportSTL();
-        unlistenCompile();
-        unlistenToggleLogs();
-      };
+      unlisteners = [unlistenExportSTL, unlistenCompile, unlistenToggleLogs];
     };
 
     setupMenuListeners();
-  }, [meshData, exportSTL, getEditorContent, compileScript]);
+
+    return () => {
+      unlisteners.forEach(unlisten => unlisten());
+    };
+  }, []); // FIXED: Empty dependency array prevents infinite loop
 
   return null; // This component doesn't render anything
 };

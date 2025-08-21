@@ -10,7 +10,7 @@ const CodeEditor: React.FC = () => {
   const { compileScript, compilationState } = useMesh();
   const fileContext = useFile();
 
-  // Debounced compilation function
+  // FIXED: Stable debounced compilation function with proper dependencies
   const debouncedCompile = useCallback((code: string) => {
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
@@ -19,9 +19,9 @@ const CodeEditor: React.FC = () => {
     debounceTimeoutRef.current = window.setTimeout(() => {
       compileScript(code);
     }, 750); // 750ms debounce
-  }, [compileScript]);
+  }, [compileScript]); // Only depend on compileScript
 
-  // Register editor methods with FileContext
+  // Register editor methods with FileContext - stable function
   useEffect(() => {
     if (monacoEditorRef.current && (fileContext as any).registerEditorMethods) {
       const getContent = () => monacoEditorRef.current?.getValue() || '';
@@ -33,67 +33,52 @@ const CodeEditor: React.FC = () => {
       
       (fileContext as any).registerEditorMethods(getContent, setContent);
     }
-  }, [fileContext]);
+  }, []); // Empty dependency - register once
 
-  // Handle content updates from FileContext
+  // Handle content updates from FileContext - stable function
   useEffect(() => {
     if (monacoEditorRef.current && fileContext.fileState.content !== monacoEditorRef.current.getValue()) {
       monacoEditorRef.current.setValue(fileContext.fileState.content);
     }
-  }, [fileContext.fileState.content]);
+  }, [fileContext.fileState.content]); // Only depend on content
 
+  // FIXED: Main editor setup with empty dependency array
   useEffect(() => {
-    if (editorRef.current) {
-      // Register Rhai language
+    if (!editorRef.current) return;
+
+    // Register Rhai language (do this once)
+    if (!monaco.languages.getLanguages().find(lang => lang.id === 'rhai')) {
       monaco.languages.register({ id: 'rhai' });
 
       // Define Rhai language syntax
       monaco.languages.setMonarchTokensProvider('rhai', {
         tokenizer: {
           root: [
-            // Keywords
             [/\b(let|const|fn|if|else|for|while|loop|break|continue|return|true|false|null)\b/, 'keyword'],
-            
-            // Types
             [/\b(int|float|bool|char|string|array|map)\b/, 'type'],
-            
-            // Numbers
             [/\d*\.\d+([eE][\-+]?\d+)?/, 'number.float'],
             [/\d+/, 'number'],
-            
-            // Strings
             [/"([^"\\]|\\.)*$/, 'string.invalid'],
             [/"/, 'string', '@string'],
             [/'([^'\\]|\\.)*$/, 'string.invalid'],
             [/'/, 'string', '@string_single'],
-            
-            // Comments
             [/\/\/.*$/, 'comment'],
             [/\/\*/, 'comment', '@comment'],
-            
-            // Operators
             [/[+\-*/%=<>!&|^~]/, 'operator'],
-            
-            // Delimiters
             [/[{}()\[\]]/, 'delimiter.bracket'],
             [/[;,.]/, 'delimiter'],
-            
-            // Identifiers
             [/[a-zA-Z_]\w*/, 'identifier'],
           ],
-          
           string: [
             [/[^\\"]+/, 'string'],
             [/\\./, 'string.escape'],
             [/"/, 'string', '@pop']
           ],
-          
           string_single: [
             [/[^\\']+/, 'string'],
             [/\\./, 'string.escape'],
             [/'/, 'string', '@pop']
           ],
-          
           comment: [
             [/[^\/*]+/, 'comment'],
             [/\*\//, 'comment', '@pop'],
@@ -102,7 +87,6 @@ const CodeEditor: React.FC = () => {
         },
       });
 
-      // Define language configuration
       monaco.languages.setLanguageConfiguration('rhai', {
         comments: {
           lineComment: '//',
@@ -127,34 +111,6 @@ const CodeEditor: React.FC = () => {
           { open: '"', close: '"' },
           { open: "'", close: "'" },
         ],
-      });
-
-      // Create the editor
-      monacoEditorRef.current = monaco.editor.create(editorRef.current, {
-        value: `// Welcome to HorseCAD Rhai Editor
-// Create 3D shapes using fidget functions
-
-// Create a simple sphere
-let sphere = sphere(1.0);
-
-// Draw the shape to generate a 3D mesh
-draw(sphere);`,
-        language: 'rhai',
-        theme: 'vs-dark',
-        fontSize: 14,
-        minimap: { enabled: true },
-        scrollBeyondLastLine: false,
-        automaticLayout: true,
-        wordWrap: 'on',
-        lineNumbers: 'on',
-        folding: true,
-        matchBrackets: 'always',
-        autoIndent: 'full',
-        formatOnPaste: true,
-        formatOnType: true,
-        suggestOnTriggerCharacters: true,
-        acceptSuggestionOnEnter: 'on',
-        tabCompletion: 'on',
       });
 
       // Add basic completion provider for Rhai
@@ -186,38 +142,6 @@ draw(sphere);`,
               range: range
             },
             {
-              label: 'if',
-              kind: monaco.languages.CompletionItemKind.Keyword,
-              insertText: 'if ${1:condition} {\n\t${2:// if body}\n}',
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'If statement',
-              range: range
-            },
-            {
-              label: 'for',
-              kind: monaco.languages.CompletionItemKind.Keyword,
-              insertText: 'for ${1:item} in ${2:iterable} {\n\t${3:// loop body}\n}',
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'For loop',
-              range: range
-            },
-            {
-              label: 'while',
-              kind: monaco.languages.CompletionItemKind.Keyword,
-              insertText: 'while ${1:condition} {\n\t${2:// loop body}\n}',
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'While loop',
-              range: range
-            },
-            {
-              label: 'print',
-              kind: monaco.languages.CompletionItemKind.Function,
-              insertText: 'print(${1:value});',
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              documentation: 'Print function',
-              range: range
-            },
-            {
               label: 'draw',
               kind: monaco.languages.CompletionItemKind.Function,
               insertText: 'draw(${1:shape});',
@@ -230,36 +154,55 @@ draw(sphere);`,
           return { suggestions };
         }
       });
-
-      // Add change listener for debounced compilation and file state updates
-      const changeListener = monacoEditorRef.current.onDidChangeModelContent(() => {
-        const code = monacoEditorRef.current?.getValue() || '';
-        console.log('Monaco editor content changed, triggering compilation');
-        
-        // Update file context with new content
-        fileContext.updateContent(code);
-        
-        // Trigger compilation
-        debouncedCompile(code);
-      });
-
-      // Focus the editor
-      monacoEditorRef.current.focus();
-
-      // Trigger initial compilation
-      const initialCode = monacoEditorRef.current.getValue();
-      console.log('Initial code loaded, triggering compilation');
-      debouncedCompile(initialCode);
-
-      // Cleanup
-      return () => {
-        changeListener.dispose();
-        if (monacoEditorRef.current) {
-          monacoEditorRef.current.dispose();
-        }
-      };
     }
-  }, [debouncedCompile]);
+
+    // Create the editor
+    monacoEditorRef.current = monaco.editor.create(editorRef.current, {
+      value: fileContext.fileState.content,
+      language: 'rhai',
+      theme: 'vs-dark',
+      fontSize: 14,
+      minimap: { enabled: true },
+      scrollBeyondLastLine: false,
+      automaticLayout: true,
+      wordWrap: 'on',
+      lineNumbers: 'on',
+      folding: true,
+      matchBrackets: 'always',
+      autoIndent: 'full',
+      formatOnPaste: true,
+      formatOnType: true,
+      suggestOnTriggerCharacters: true,
+      acceptSuggestionOnEnter: 'on',
+      tabCompletion: 'on',
+    });
+
+    // Add change listener for debounced compilation and file state updates
+    const changeListener = monacoEditorRef.current.onDidChangeModelContent(() => {
+      const code = monacoEditorRef.current?.getValue() || '';
+      
+      // Update file context with new content
+      fileContext.updateContent(code);
+      
+      // Trigger compilation
+      debouncedCompile(code);
+    });
+
+    // Focus the editor
+    monacoEditorRef.current.focus();
+
+    // Trigger initial compilation
+    const initialCode = monacoEditorRef.current.getValue();
+    debouncedCompile(initialCode);
+
+    // Cleanup
+    return () => {
+      changeListener.dispose();
+      if (monacoEditorRef.current) {
+        monacoEditorRef.current.dispose();
+      }
+    };
+  }, []); // FIXED: Empty dependency array prevents infinite loop
 
   return (
     <div className="h-full w-full">
