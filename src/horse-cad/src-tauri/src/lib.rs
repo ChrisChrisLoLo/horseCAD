@@ -11,7 +11,11 @@ use fidget::{
 use nalgebra::{Scale3, Translation3};
 use rhai::{Dynamic, EvalAltResult, NativeCallContext};
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter};
+use std::fs;
+use std::path::Path;
+use tauri::{AppHandle, Emitter, Manager};
+use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
+use tauri_plugin_dialog::{DialogExt};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LogEntry {
@@ -194,6 +198,118 @@ fn export_mesh_to_stl(mesh: &Mesh) -> Result<Vec<u8>> {
     Ok(buffer)
 }
 
+/// Save .horsi file
+#[tauri::command]
+async fn save_horsi_file(app_handle: AppHandle, path: String, content: String) -> Result<bool, String> {
+    match fs::write(&path, content) {
+        Ok(_) => {
+            emit_log(&app_handle, "info", &format!("Saved file: {}", path), Some("File"));
+            Ok(true)
+        }
+        Err(e) => {
+            let error_msg = format!("Failed to save file {}: {}", path, e);
+            emit_log(&app_handle, "error", &error_msg, Some("File"));
+            Err(error_msg)
+        }
+    }
+}
+
+/// Load .horsi file
+#[tauri::command]
+async fn load_horsi_file(app_handle: AppHandle, path: String) -> Result<String, String> {
+    match fs::read_to_string(&path) {
+        Ok(content) => {
+            emit_log(&app_handle, "info", &format!("Loaded file: {}", path), Some("File"));
+            Ok(content)
+        }
+        Err(e) => {
+            let error_msg = format!("Failed to load file {}: {}", path, e);
+            emit_log(&app_handle, "error", &error_msg, Some("File"));
+            Err(error_msg)
+        }
+    }
+}
+
+/// Export STL file
+#[tauri::command]
+async fn export_stl_file(app_handle: AppHandle, path: String, stl_data: Vec<u8>) -> Result<bool, String> {
+    match fs::write(&path, stl_data) {
+        Ok(_) => {
+            emit_log(&app_handle, "info", &format!("Exported STL: {}", path), Some("Export"));
+            Ok(true)
+        }
+        Err(e) => {
+            let error_msg = format!("Failed to export STL {}: {}", path, e);
+            emit_log(&app_handle, "error", &error_msg, Some("Export"));
+            Err(error_msg)
+        }
+    }
+}
+
+/// Show save dialog for .horsi files
+#[tauri::command]
+async fn show_save_dialog(app_handle: AppHandle) -> Result<Option<String>, String> {
+    use std::sync::mpsc;
+    let (tx, rx) = mpsc::channel();
+    
+    app_handle.dialog()
+        .file()
+        .add_filter("HorseCAD Script", &["horsi"])
+        .set_title("Save HorseCAD Script")
+        .save_file(move |path| {
+            let _ = tx.send(path);
+        });
+    
+    match rx.recv() {
+        Ok(Some(path)) => Ok(Some(path.to_string())),
+        Ok(None) => Ok(None),
+        Err(_) => Err("Dialog error".to_string()),
+    }
+}
+
+/// Show open dialog for .horsi files
+#[tauri::command]
+async fn show_open_dialog(app_handle: AppHandle) -> Result<Option<String>, String> {
+    use std::sync::mpsc;
+    let (tx, rx) = mpsc::channel();
+    
+    app_handle.dialog()
+        .file()
+        .add_filter("HorseCAD Script", &["horsi"])
+        .set_title("Open HorseCAD Script")
+        .pick_file(move |path| {
+            let _ = tx.send(path);
+        });
+    
+    match rx.recv() {
+        Ok(Some(path)) => Ok(Some(path.to_string())),
+        Ok(None) => Ok(None),
+        Err(_) => Err("Dialog error".to_string()),
+    }
+}
+
+/// Show save dialog for STL files
+#[tauri::command]
+async fn show_stl_save_dialog(app_handle: AppHandle) -> Result<Option<String>, String> {
+    use std::sync::mpsc;
+    let (tx, rx) = mpsc::channel();
+    
+    app_handle.dialog()
+        .file()
+        .add_filter("STL Files", &["stl"])
+        .set_title("Export STL File")
+        .save_file(move |path| {
+            let _ = tx.send(path);
+        });
+    
+    match rx.recv() {
+        Ok(Some(path)) => Ok(Some(path.to_string())),
+        Ok(None) => Ok(None),
+        Err(_) => Err("Dialog error".to_string()),
+    }
+}
+
+
 /// Basic greet function (keeping for compatibility)
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -204,7 +320,99 @@ fn greet(name: &str) -> String {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, compile_script])
+        .plugin(tauri_plugin_dialog::init())
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            compile_script,
+            save_horsi_file,
+            load_horsi_file,
+            export_stl_file,
+            show_save_dialog,
+            show_open_dialog,
+            show_stl_save_dialog
+        ])
+        .setup(|app| {
+            // Create the menu
+            let file_menu = SubmenuBuilder::new(app, "File")
+                .item(&MenuItemBuilder::with_id("new", "New").accelerator("CmdOrCtrl+N").build(app)?)
+                .item(&MenuItemBuilder::with_id("open", "Open...").accelerator("CmdOrCtrl+O").build(app)?)
+                .separator()
+                .item(&MenuItemBuilder::with_id("save", "Save").accelerator("CmdOrCtrl+S").build(app)?)
+                .item(&MenuItemBuilder::with_id("save_as", "Save As...").accelerator("CmdOrCtrl+Shift+S").build(app)?)
+                .separator()
+                .item(&MenuItemBuilder::with_id("export_stl", "Export STL...").accelerator("CmdOrCtrl+E").build(app)?)
+                .separator()
+                .item(&PredefinedMenuItem::quit(app, Some("Quit"))?)
+                .build()?;
+
+            let edit_menu = SubmenuBuilder::new(app, "Edit")
+                .item(&PredefinedMenuItem::undo(app, Some("Undo"))?)
+                .item(&PredefinedMenuItem::redo(app, Some("Redo"))?)
+                .separator()
+                .item(&PredefinedMenuItem::cut(app, Some("Cut"))?)
+                .item(&PredefinedMenuItem::copy(app, Some("Copy"))?)
+                .item(&PredefinedMenuItem::paste(app, Some("Paste"))?)
+                .item(&PredefinedMenuItem::select_all(app, Some("Select All"))?)
+                .build()?;
+
+            let view_menu = SubmenuBuilder::new(app, "View")
+                .item(&MenuItemBuilder::with_id("compile", "Compile").accelerator("CmdOrCtrl+R").build(app)?)
+                .separator()
+                .item(&MenuItemBuilder::with_id("toggle_logs", "Toggle Logs").accelerator("CmdOrCtrl+L").build(app)?)
+                .build()?;
+
+            let menu = MenuBuilder::new(app)
+                .item(&file_menu)
+                .item(&edit_menu)
+                .item(&view_menu)
+                .build()?;
+
+            app.set_menu(menu)?;
+
+            // Handle menu events
+            app.on_menu_event(move |app, event| {
+                match event.id().as_ref() {
+                    "new" => {
+                        if let Err(e) = app.emit("menu_new", ()) {
+                            eprintln!("Failed to emit menu_new event: {}", e);
+                        }
+                    }
+                    "open" => {
+                        if let Err(e) = app.emit("menu_open", ()) {
+                            eprintln!("Failed to emit menu_open event: {}", e);
+                        }
+                    }
+                    "save" => {
+                        if let Err(e) = app.emit("menu_save", ()) {
+                            eprintln!("Failed to emit menu_save event: {}", e);
+                        }
+                    }
+                    "save_as" => {
+                        if let Err(e) = app.emit("menu_save_as", ()) {
+                            eprintln!("Failed to emit menu_save_as event: {}", e);
+                        }
+                    }
+                    "export_stl" => {
+                        if let Err(e) = app.emit("menu_export_stl", ()) {
+                            eprintln!("Failed to emit menu_export_stl event: {}", e);
+                        }
+                    }
+                    "compile" => {
+                        if let Err(e) = app.emit("menu_compile", ()) {
+                            eprintln!("Failed to emit menu_compile event: {}", e);
+                        }
+                    }
+                    "toggle_logs" => {
+                        if let Err(e) = app.emit("menu_toggle_logs", ()) {
+                            eprintln!("Failed to emit menu_toggle_logs event: {}", e);
+                        }
+                    }
+                    _ => {}
+                }
+            });
+
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

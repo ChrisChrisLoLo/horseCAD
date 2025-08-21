@@ -1,13 +1,57 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Layout from "./components/Layout";
-import { MeshProvider } from "./contexts/MeshContext";
+import { MeshProvider, useMesh } from "./contexts/MeshContext";
+import { FileProvider, useFile } from "./contexts/FileContext";
+import { listen } from '@tauri-apps/api/event';
 import "./App.css";
+
+// Component to connect contexts and handle menu events
+const MenuEventConnector: React.FC = () => {
+  const { meshData, compileScript } = useMesh();
+  const { exportSTL, getEditorContent } = useFile();
+  const [showLogs, setShowLogs] = useState(true);
+
+  useEffect(() => {
+    const setupMenuListeners = async () => {
+      // STL Export
+      const unlistenExportSTL = await listen('menu_export_stl', () => {
+        exportSTL(meshData?.stlData);
+      });
+
+      // Compile
+      const unlistenCompile = await listen('menu_compile', () => {
+        const code = getEditorContent();
+        compileScript(code);
+      });
+
+      // Toggle Logs
+      const unlistenToggleLogs = await listen('menu_toggle_logs', () => {
+        setShowLogs(prev => !prev);
+        // TODO: Implement actual log panel toggle functionality
+        console.log('Toggle logs menu item clicked');
+      });
+
+      return () => {
+        unlistenExportSTL();
+        unlistenCompile();
+        unlistenToggleLogs();
+      };
+    };
+
+    setupMenuListeners();
+  }, [meshData, exportSTL, getEditorContent, compileScript]);
+
+  return null; // This component doesn't render anything
+};
 
 function App() {
   return (
-    <MeshProvider>
-      <Layout />
-    </MeshProvider>
+    <FileProvider>
+      <MeshProvider>
+        <MenuEventConnector />
+        <Layout />
+      </MeshProvider>
+    </FileProvider>
   );
 }
 

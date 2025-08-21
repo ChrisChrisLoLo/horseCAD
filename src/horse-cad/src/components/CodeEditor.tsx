@@ -1,12 +1,14 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import * as monaco from 'monaco-editor';
 import { useMesh } from '../contexts/MeshContext';
+import { useFile } from '../contexts/FileContext';
 
 const CodeEditor: React.FC = () => {
   const editorRef = useRef<HTMLDivElement>(null);
   const monacoEditorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const debounceTimeoutRef = useRef<number | null>(null);
   const { compileScript, compilationState } = useMesh();
+  const fileContext = useFile();
 
   // Debounced compilation function
   const debouncedCompile = useCallback((code: string) => {
@@ -18,6 +20,27 @@ const CodeEditor: React.FC = () => {
       compileScript(code);
     }, 750); // 750ms debounce
   }, [compileScript]);
+
+  // Register editor methods with FileContext
+  useEffect(() => {
+    if (monacoEditorRef.current && (fileContext as any).registerEditorMethods) {
+      const getContent = () => monacoEditorRef.current?.getValue() || '';
+      const setContent = (content: string) => {
+        if (monacoEditorRef.current) {
+          monacoEditorRef.current.setValue(content);
+        }
+      };
+      
+      (fileContext as any).registerEditorMethods(getContent, setContent);
+    }
+  }, [fileContext]);
+
+  // Handle content updates from FileContext
+  useEffect(() => {
+    if (monacoEditorRef.current && fileContext.fileState.content !== monacoEditorRef.current.getValue()) {
+      monacoEditorRef.current.setValue(fileContext.fileState.content);
+    }
+  }, [fileContext.fileState.content]);
 
   useEffect(() => {
     if (editorRef.current) {
@@ -208,10 +231,15 @@ draw(sphere);`,
         }
       });
 
-      // Add change listener for debounced compilation
+      // Add change listener for debounced compilation and file state updates
       const changeListener = monacoEditorRef.current.onDidChangeModelContent(() => {
         const code = monacoEditorRef.current?.getValue() || '';
         console.log('Monaco editor content changed, triggering compilation');
+        
+        // Update file context with new content
+        fileContext.updateContent(code);
+        
+        // Trigger compilation
         debouncedCompile(code);
       });
 
@@ -236,7 +264,28 @@ draw(sphere);`,
   return (
     <div className="h-full w-full">
       <div className="h-8 bg-gray-800 border-b border-gray-700 flex items-center px-3">
-        <span className="text-sm text-gray-300 font-medium">Rhai Script Editor</span>
+        <div className="flex items-center space-x-2">
+          <span className="text-sm text-gray-300 font-medium">
+            {fileContext.fileState.currentFilePath 
+              ? fileContext.fileState.currentFilePath.split('/').pop()?.replace('.horsi', '') || 'Untitled'
+              : 'Untitled'
+            }
+            {fileContext.fileState.isModified && <span className="text-yellow-400">*</span>}
+          </span>
+          <span className="text-xs text-gray-500">
+            {fileContext.fileState.currentFilePath ? '.horsi' : '(unsaved)'}
+          </span>
+        </div>
+        
+        {/* File Status */}
+        <div className="ml-4 flex items-center space-x-2">
+          {fileContext.fileState.isLoading && (
+            <div className="flex items-center space-x-1">
+              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+              <span className="text-xs text-blue-400">Loading...</span>
+            </div>
+          )}
+        </div>
         
         {/* Compilation Status */}
         <div className="ml-auto flex items-center space-x-2">
