@@ -100,7 +100,7 @@ const LogPanel: React.FC<LogPanelProps> = ({ logs = [], onClear }) => {
 
     // Cleanup function to remove event listener
     return () => {
-      listenerSetupRef.current = false;
+      // DON'T reset the ref here - let it stay true to prevent re-setup in Strict Mode
       if (unlisten) {
         unlisten();
       }
