@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Layout from "./components/Layout";
 import { MeshProvider, useMesh } from "./contexts/MeshContext";
 import { FileProvider, useFile } from "./contexts/FileContext";
@@ -10,9 +10,18 @@ const MenuEventConnector: React.FC = () => {
   const { meshData, compileScript } = useMesh();
   const { exportSTL, getEditorContent } = useFile();
   const [showLogs, setShowLogs] = useState(true);
+  
+  // Strict Mode safe: prevent duplicate listener setup
+  const listenersSetupRef = useRef(false);
 
-  // FIXED: Empty dependency array prevents infinite loop
+  // STRICT MODE SAFE: Prevent duplicate listener setup
   useEffect(() => {
+    // Prevent multiple listener setups in Strict Mode
+    if (listenersSetupRef.current) {
+      return;
+    }
+    listenersSetupRef.current = true;
+
     let unlisteners: (() => void)[] = [];
 
     const setupMenuListeners = async () => {
@@ -40,9 +49,10 @@ const MenuEventConnector: React.FC = () => {
     setupMenuListeners();
 
     return () => {
+      // DON'T reset the ref here - let it stay true to prevent re-setup in Strict Mode
       unlisteners.forEach(unlisten => unlisten());
     };
-  }, []); // FIXED: Empty dependency array prevents infinite loop
+  }, []); // Empty dependency array prevents infinite loop
 
   return null; // This component doesn't render anything
 };

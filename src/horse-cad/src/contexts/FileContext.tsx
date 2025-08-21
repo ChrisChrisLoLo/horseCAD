@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
@@ -55,6 +55,9 @@ export const FileProvider: React.FC<FileProviderProps> = ({ children }) => {
   // Store reference to editor content getter/setter - but use refs to avoid recreation
   const [getEditorContent, setGetEditorContent] = useState<() => string>(() => () => fileState.content);
   const [setEditorContent, setSetEditorContent] = useState<(content: string) => void>(() => () => {});
+
+  // Strict Mode safe: prevent duplicate listener setup
+  const listenersSetupRef = useRef(false);
 
   // New file - stable function
   const newFile = useCallback(() => {
@@ -223,8 +226,14 @@ export const FileProvider: React.FC<FileProviderProps> = ({ children }) => {
     }));
   }, []);
 
-  // THE KEY FIX: Remove functions from dependency array to prevent infinite loop
+  // STRICT MODE SAFE: Prevent duplicate listener setup
   useEffect(() => {
+    // Prevent multiple listener setups in Strict Mode
+    if (listenersSetupRef.current) {
+      return;
+    }
+    listenersSetupRef.current = true;
+
     let unlisteners: (() => void)[] = [];
 
     const setupMenuListeners = async () => {
@@ -239,9 +248,10 @@ export const FileProvider: React.FC<FileProviderProps> = ({ children }) => {
     setupMenuListeners();
 
     return () => {
+      // DON'T reset the ref here - let it stay true to prevent re-setup in Strict Mode
       unlisteners.forEach(unlisten => unlisten());
     };
-  }, []); // FIXED: Empty dependency array prevents infinite loop
+  }, []); // Empty dependency array prevents infinite loop
 
   const value: FileContextType = {
     fileState,
