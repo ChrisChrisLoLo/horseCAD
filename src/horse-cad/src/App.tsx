@@ -9,8 +9,8 @@ import "./App.css";
 const MenuEventConnector: React.FC = () => {
   const { meshData, compileScript } = useMesh();
   const { exportSTL, getEditorContent } = useFile();
-  const [showLogs, setShowLogs] = useState(true);
-  
+  const [ _, setShowLogs ] = useState(true);
+
   // Strict Mode safe: prevent duplicate listener setup
   const listenersSetupRef = useRef(false);
 

@@ -16,7 +16,7 @@ const ThreeCanvas: React.FC = () => {
   const [fps, setFps] = useState<number>(60);
   const [showPerformance, setShowPerformance] = useState<boolean>(false);
   const fpsCounterRef = useRef<{ frames: number; lastTime: number }>({ frames: 0, lastTime: 0 });
-  const { meshData, compilationState } = useMesh();
+  const { meshData, } = useMesh();
 
   useEffect(() => {
     if (!canvasRef.current) return;
