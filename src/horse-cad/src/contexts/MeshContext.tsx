@@ -66,43 +66,44 @@ export const MeshProvider: React.FC<MeshProviderProps> = ({ children }) => {
       return; // Exit early if compilation is already in progress
     }
 
-    try {
-      const result = await invoke<{
-        success: boolean;
-        stl_data?: number[];
-        triangle_count?: number;
-        error?: string;
-      }>('compile_script', {
-        code,
-        depth,
-        scale,
-        center,
-      });
+    const result = await invoke<{
+      success: boolean;
+      stl_data?: number[];
+      triangle_count?: number;
+      error?: string;
+    }>('compile_script', {
+      code,
+      depth,
+      scale,
+      center,
+    });
 
-      if (result.success && result.stl_data && result.triangle_count !== undefined) {
-        const stlData = new Uint8Array(result.stl_data);
-        const newMeshData: MeshData = {
-          stlData,
-          triangleCount: result.triangle_count,
-          timestamp: Date.now(),
-        };
-
-        setMeshData(newMeshData);
-        setCompilationState(prev => ({
-          ...prev,
-          isCompiling: false,
-          error: null,
-          lastCompiled: Date.now(),
-        }));
-      } else {
-        throw new Error(result.error || 'Compilation failed');
+    if (result.success) {
+      if (!result.stl_data || !result.triangle_count) {
+        throw new Error('Invalid STL data received from compilation');
       }
-    } catch (error) {
+
+      const stlData = new Uint8Array(result.stl_data);
+      const newMeshData: MeshData = {
+        stlData,
+        triangleCount: result.triangle_count,
+        timestamp: Date.now(),
+      };
+
+      setMeshData(newMeshData);
       setCompilationState(prev => ({
         ...prev,
         isCompiling: false,
-        error: error instanceof Error ? error.message : 'Unknown compilation error',
+        error: null,
+        lastCompiled: Date.now(),
       }));
+    } else {
+      setCompilationState(prev => ({
+        ...prev,
+        isCompiling: false,
+        error: result.error || 'An unknown compilation error has occurred',
+      }));
+      console.error('Compilation error: ', result.error);
     }
   }, []); // Empty dependency array to keep function reference stable
 

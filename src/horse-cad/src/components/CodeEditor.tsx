@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useCallback } from 'react';
 import * as monaco from 'monaco-editor';
 import { useMesh } from '../contexts/MeshContext';
 import { useFile } from '../contexts/FileContext';
+import { initMonacoThemes } from '../utils/monacoThemes';
 
 const CodeEditor: React.FC = () => {
   const editorRef = useRef<HTMLDivElement>(null);
@@ -10,7 +11,6 @@ const CodeEditor: React.FC = () => {
   const { compileScript, compilationState } = useMesh();
   const fileContext = useFile();
 
-  // FIXED: Stable debounced compilation function with proper dependencies
   const debouncedCompile = useCallback((code: string) => {
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
@@ -156,11 +156,13 @@ const CodeEditor: React.FC = () => {
       });
     }
 
+    initMonacoThemes();
+
     // Create the editor
     monacoEditorRef.current = monaco.editor.create(editorRef.current, {
       value: fileContext.fileState.content,
       language: 'rhai',
-      theme: 'vs-dark',
+      theme: 'dracula',
       fontSize: 14,
       minimap: { enabled: true },
       scrollBeyondLastLine: false,
