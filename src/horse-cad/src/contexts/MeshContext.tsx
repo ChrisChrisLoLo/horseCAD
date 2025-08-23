@@ -77,33 +77,39 @@ export const MeshProvider: React.FC<MeshProviderProps> = ({ children }) => {
       scale,
       center,
     });
+    try {
+      if (result.success) {
+        if (!result.stl_data || !result.triangle_count) {
+          throw new Error('Invalid STL data received from compilation');
+        }
+        if ( result.triangle_count === 0 ) {
+          throw new Error('Invalid STL data received from compilation');
+        }
 
-    if (result.success) {
-      if (!result.stl_data || !result.triangle_count) {
-        throw new Error('Invalid STL data received from compilation');
+        const stlData = new Uint8Array(result.stl_data);
+        const newMeshData: MeshData = {
+          stlData,
+          triangleCount: result.triangle_count,
+          timestamp: Date.now(),
+        };
+
+        setMeshData(newMeshData);
+        setCompilationState(prev => ({
+          ...prev,
+          isCompiling: false,
+          error: null,
+          lastCompiled: Date.now(),
+        }));
+      } else {
+        throw new Error(result.error || 'Compilation failed without a specific error message');
       }
-
-      const stlData = new Uint8Array(result.stl_data);
-      const newMeshData: MeshData = {
-        stlData,
-        triangleCount: result.triangle_count,
-        timestamp: Date.now(),
-      };
-
-      setMeshData(newMeshData);
+    } catch (error) {
       setCompilationState(prev => ({
         ...prev,
         isCompiling: false,
-        error: null,
-        lastCompiled: Date.now(),
+        error: (error as Error).message || 'An unknown error occurred during compilation',
       }));
-    } else {
-      setCompilationState(prev => ({
-        ...prev,
-        isCompiling: false,
-        error: result.error || 'An unknown compilation error has occurred',
-      }));
-      console.error('Compilation error: ', result.error);
+      console.error('Error processing compilation result: ', error);
     }
   }, []); // Empty dependency array to keep function reference stable
 
