@@ -18,6 +18,7 @@ export interface MeshContextType {
   compilationState: CompilationState;
   compileScript: (code: string, depth?: number, scale?: number, center?: [number, number, number]) => Promise<void>;
   clearMesh: () => void;
+  cancelCompilation: () => void;
 }
 
 const MeshContext = createContext<MeshContextType | undefined>(undefined);
@@ -66,24 +67,25 @@ export const MeshProvider: React.FC<MeshProviderProps> = ({ children }) => {
       return; // Exit early if compilation is already in progress
     }
 
-    const result = await invoke<{
-      success: boolean;
-      stl_data?: number[];
-      triangle_count?: number;
-      error?: string;
-    }>('compile_script', {
-      code,
-      depth,
-      scale,
-      center,
-    });
     try {
+      const result = await invoke<{
+        success: boolean;
+        stl_data?: number[];
+        triangle_count?: number;
+        error?: string;
+      }>('compile_script', {
+        code,
+        depth,
+        scale,
+        center,
+      });
+
       if (result.success) {
         if (!result.stl_data || !result.triangle_count) {
           throw new Error('Invalid STL data received from compilation');
         }
-        if ( result.triangle_count === 0 ) {
-          throw new Error('Invalid STL data received from compilation');
+        if (result.triangle_count === 0) {
+          throw new Error('No geometry generated - check your script for valid shapes');
         }
 
         const stlData = new Uint8Array(result.stl_data);
@@ -109,7 +111,7 @@ export const MeshProvider: React.FC<MeshProviderProps> = ({ children }) => {
         isCompiling: false,
         error: (error as Error).message || 'An unknown error occurred during compilation',
       }));
-      console.error('Error processing compilation result: ', error);
+      console.error('Error during compilation: ', error);
     }
   }, []); // Empty dependency array to keep function reference stable
 
@@ -121,11 +123,20 @@ export const MeshProvider: React.FC<MeshProviderProps> = ({ children }) => {
     }));
   }, []);
 
+  const cancelCompilation = useCallback(() => {
+    setCompilationState(prev => ({
+      ...prev,
+      isCompiling: false,
+      error: 'Compilation cancelled by user',
+    }));
+  }, []);
+
   const value: MeshContextType = {
     meshData,
     compilationState,
     compileScript,
     clearMesh,
+    cancelCompilation,
   };
 
   return (
