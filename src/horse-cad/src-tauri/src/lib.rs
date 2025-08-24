@@ -101,9 +101,9 @@ async fn compile_script(
     emit_log(&app_handle, "info", &format!("Applying transformations (scale: {}, center: {:?})", scale, center), Some("Transform"));
     let s = 1.0 / scale;
     let scale_transform = Scale3::new(s, s, s);
-    let center_transform = Translation3::new(-center[0], -center[1], -center[2]);
-    let t = center_transform.to_homogeneous() * scale_transform.to_homogeneous();
-    let shape = shape.apply_transform(t);
+    // let center_transform = Translation3::new(-center[0], -center[1], -center[2]);
+    // let t = center_transform.to_homogeneous() * scale_transform.to_homogeneous();
+    // let shape = shape.apply_transform(t);
     
     // Generate mesh
     emit_log(&app_handle, "info", &format!("Building octree at depth {}", depth), Some("Mesh"));

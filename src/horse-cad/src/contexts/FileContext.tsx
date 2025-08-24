@@ -15,7 +15,6 @@ export interface FileContextType {
   openFile: () => Promise<void>;
   saveFile: () => Promise<void>;
   saveFileAs: () => Promise<void>;
-  exportSTL: (meshData?: Uint8Array) => Promise<void>;
   updateContent: (content: string) => void;
   getEditorContent: () => string;
   setEditorContent: (content: string) => void;
@@ -194,28 +193,6 @@ export const FileProvider: React.FC<FileProviderProps> = ({ children }) => {
     }
   }, [getEditorContent]);
 
-  // Export STL - stable function
-  const exportSTL = useCallback(async (meshData?: Uint8Array) => {
-    try {
-      if (!meshData) {
-        alert('No mesh data available. Please compile your script first.');
-        return;
-      }
-
-      const filePath = await invoke<string | null>('show_stl_save_dialog');
-      if (!filePath) return;
-
-      await invoke<boolean>('export_stl_file', {
-        path: filePath,
-        stlData: Array.from(meshData),
-      });
-
-      alert('STL file exported successfully!');
-    } catch (error) {
-      console.error('Failed to export STL:', error);
-      alert(`Failed to export STL: ${error}`);
-    }
-  }, []);
 
   // Update content - stable function
   const updateContent = useCallback((content: string) => {
@@ -259,7 +236,6 @@ export const FileProvider: React.FC<FileProviderProps> = ({ children }) => {
     openFile,
     saveFile,
     saveFileAs,
-    exportSTL,
     updateContent,
     getEditorContent,
     setEditorContent: (content: string) => setEditorContent(content),

@@ -19,6 +19,7 @@ export interface MeshContextType {
   compileScript: (code: string, depth?: number, scale?: number, center?: [number, number, number]) => Promise<void>;
   clearMesh: () => void;
   cancelCompilation: () => void;
+  exportSTL: () => Promise<void>;
 }
 
 const MeshContext = createContext<MeshContextType | undefined>(undefined);
@@ -131,12 +132,36 @@ export const MeshProvider: React.FC<MeshProviderProps> = ({ children }) => {
     }));
   }, []);
 
+  const exportSTL = useCallback(async () => {
+    try {
+      const currentMeshData = meshData;
+      if (!currentMeshData) {
+        alert('No mesh data available. Please compile your script first.');
+        return;
+      }
+
+      const filePath = await invoke<string | null>('show_stl_save_dialog');
+      if (!filePath) return;
+
+      await invoke<boolean>('export_stl_file', {
+        path: filePath,
+        stlData: Array.from(currentMeshData.stlData),
+      });
+
+      alert('STL file exported successfully!');
+    } catch (error) {
+      console.error('Failed to export STL:', error);
+      alert(`Failed to export STL: ${error}`);
+    }
+  }, []);
+
   const value: MeshContextType = {
     meshData,
     compilationState,
     compileScript,
     clearMesh,
     cancelCompilation,
+    exportSTL,
   };
 
   return (

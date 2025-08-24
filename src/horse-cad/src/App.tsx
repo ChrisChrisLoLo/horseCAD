@@ -7,8 +7,8 @@ import "./App.css";
 
 // Component to connect contexts and handle menu events
 const MenuEventConnector: React.FC = () => {
-  const { meshData, compileScript } = useMesh();
-  const { exportSTL, getEditorContent } = useFile();
+  const { meshData, compileScript, exportSTL } = useMesh();
+  const { getEditorContent } = useFile();
   const [ _, setShowLogs ] = useState(true);
 
   // Strict Mode safe: prevent duplicate listener setup
@@ -27,7 +27,7 @@ const MenuEventConnector: React.FC = () => {
     const setupMenuListeners = async () => {
       // STL Export
       const unlistenExportSTL = await listen('menu_export_stl', () => {
-        exportSTL(meshData?.stlData);
+        exportSTL();
       });
 
       // Compile
