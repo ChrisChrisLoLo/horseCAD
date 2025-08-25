@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 
 export interface MeshData {
@@ -134,18 +134,25 @@ export const MeshProvider: React.FC<MeshProviderProps> = ({ children }) => {
 
   const exportSTL = useCallback(async () => {
     try {
-      const currentMeshData = meshData;
+      // Access current meshData using state setter callback pattern
+      let currentMeshData: MeshData | null = null;
+      setMeshData(current => {
+        currentMeshData = current;
+        return current; // Don't change state, just read it
+      });
+
       if (!currentMeshData) {
         alert('No mesh data available. Please compile your script first.');
         return;
       }
+      const meshData: MeshData = currentMeshData;
 
       const filePath = await invoke<string | null>('show_stl_save_dialog');
       if (!filePath) return;
 
       await invoke<boolean>('export_stl_file', {
         path: filePath,
-        stlData: Array.from(currentMeshData.stlData),
+        stlData: Array.from(meshData.stlData),
       });
 
       alert('STL file exported successfully!');
