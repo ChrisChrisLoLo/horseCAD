@@ -55,9 +55,6 @@ export const FileProvider: React.FC<FileProviderProps> = ({ children }) => {
   const [getEditorContent, setGetEditorContent] = useState<() => string>(() => () => fileState.content);
   const [setEditorContent, setSetEditorContent] = useState<(content: string) => void>(() => () => {});
 
-  // Strict Mode safe: prevent duplicate listener setup
-  const listenersSetupRef = useRef(false);
-
   // New file - stable function
   const newFile = useCallback(() => {
     if (fileState.isModified) {
@@ -203,32 +200,20 @@ export const FileProvider: React.FC<FileProviderProps> = ({ children }) => {
     }));
   }, []);
 
-  // STRICT MODE SAFE: Prevent duplicate listener setup
   useEffect(() => {
-    // Prevent multiple listener setups in Strict Mode
-    if (listenersSetupRef.current) {
-      return;
-    }
-    listenersSetupRef.current = true;
+    console.log('Setting up listeners...');
 
-    let unlisteners: (() => void)[] = [];
+    const unlistenNew = listen('menu_new', () => newFile());
+    const unlistenOpen = listen('menu_open', () => openFile());
+    const unlistenSave = listen('menu_save', () => saveFile());
+    const unlistenSaveAs = listen('menu_save_as', () => saveFileAs());
 
-    const setupMenuListeners = async () => {
-      const unlistenNew = await listen('menu_new', () => newFile());
-      const unlistenOpen = await listen('menu_open', () => openFile());
-      const unlistenSave = await listen('menu_save', () => saveFile());
-      const unlistenSaveAs = await listen('menu_save_as', () => saveFileAs());
-
-      unlisteners = [unlistenNew, unlistenOpen, unlistenSave, unlistenSaveAs];
-    };
-
-    setupMenuListeners();
+    const unlisteners = [unlistenNew, unlistenOpen, unlistenSave, unlistenSaveAs];
 
     return () => {
-      // DON'T reset the ref here - let it stay true to prevent re-setup in Strict Mode
-      unlisteners.forEach(unlisten => unlisten());
+      unlisteners.forEach(unlisten => unlisten.then(f => f()));
     };
-  }, []); // Empty dependency array prevents infinite loop
+  }, []);
 
   const value: FileContextType = {
     fileState,
