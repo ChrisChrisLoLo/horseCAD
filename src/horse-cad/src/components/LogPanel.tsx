@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { listen } from '@tauri-apps/api/event';
+import { CompilationState } from '../App';
 
 export interface LogEntry {
   id: number;
@@ -10,11 +11,12 @@ export interface LogEntry {
 }
 
 interface LogPanelProps {
+  compilationState: CompilationState;
   logs?: LogEntry[];
   onClear?: () => void;
 }
 
-const LogPanel: React.FC<LogPanelProps> = ({ logs = [], onClear }) => {
+const LogPanel: React.FC<LogPanelProps> = ({ compilationState, logs = [], onClear }) => {
   const [internalLogs, setInternalLogs] = useState<LogEntry[]>([
     {
       id: 1,
@@ -107,6 +109,29 @@ const LogPanel: React.FC<LogPanelProps> = ({ logs = [], onClear }) => {
     };
   }, []);
 
+  // Add compilation state changes to logs
+  useEffect(() => {
+    if (compilationState.error) {
+      const errorLog: LogEntry = {
+        id: Date.now() + Math.random(),
+        timestamp: new Date(),
+        level: 'error',
+        message: compilationState.error,
+        source: 'Compiler'
+      };
+      setInternalLogs(prev => [...prev, errorLog]);
+    } else if (compilationState.lastCompiled > 0 && !compilationState.isCompiling) {
+      const successLog: LogEntry = {
+        id: Date.now() + Math.random(),
+        timestamp: new Date(),
+        level: 'info',
+        message: 'Script compiled successfully',
+        source: 'Compiler'
+      };
+      setInternalLogs(prev => [...prev, successLog]);
+    }
+  }, [compilationState.error, compilationState.lastCompiled, compilationState.isCompiling]);
+
   // Use provided logs or internal logs
   const displayLogs = logs.length > 0 ? logs : internalLogs;
 
@@ -173,6 +198,16 @@ const LogPanel: React.FC<LogPanelProps> = ({ logs = [], onClear }) => {
       {/* Header */}
       <div className="h-8 bg-gray-800 border-b border-gray-700 flex items-center px-3">
         <span className="text-sm text-gray-300 font-medium">Console</span>
+        
+        {/* Compilation Status */}
+        <div className="ml-4 flex items-center space-x-2">
+          {compilationState.isCompiling && (
+            <div className="flex items-center space-x-1">
+              <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
+              <span className="text-xs text-yellow-400">Compiling...</span>
+            </div>
+          )}
+        </div>
         
         {/* Filter buttons */}
         <div className="ml-4 flex items-center space-x-1">

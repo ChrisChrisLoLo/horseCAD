@@ -1,15 +1,26 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import * as monaco from 'monaco-editor';
-import { useMesh } from '../contexts/MeshContext';
-import { useFile } from '../contexts/FileContext';
 import { initMonacoThemes } from '../utils/monacoThemes';
+import { FileState, CompilationState } from '../App';
 
-const CodeEditor: React.FC = () => {
+interface CodeEditorProps {
+  fileState: FileState;
+  onContentUpdate: (content: string) => void;
+  registerEditorMethods: (getter: () => string, setter: (content: string) => void) => void;
+  compilationState: CompilationState;
+  onCompileRequest: (code: string, depth?: number, scale?: number, center?: [number, number, number]) => Promise<void>;
+}
+
+const CodeEditor: React.FC<CodeEditorProps> = ({
+  fileState,
+  onContentUpdate,
+  registerEditorMethods,
+  compilationState,
+  onCompileRequest,
+}) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const monacoEditorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const debounceTimeoutRef = useRef<number | null>(null);
-  const { compileScript, compilationState } = useMesh();
-  const fileContext = useFile();
 
   const debouncedCompile = useCallback((code: string) => {
     if (debounceTimeoutRef.current) {
@@ -17,13 +28,13 @@ const CodeEditor: React.FC = () => {
     }
 
     debounceTimeoutRef.current = window.setTimeout(() => {
-      compileScript(code);
+      onCompileRequest(code);
     }, 750); // 750ms debounce
-  }, [compileScript]); // Only depend on compileScript
+  }, [onCompileRequest]);
 
-  // Register editor methods with FileContext - stable function
+  // Register editor methods with parent - stable function
   useEffect(() => {
-    if (monacoEditorRef.current && (fileContext as any).registerEditorMethods) {
+    if (monacoEditorRef.current) {
       const getContent = () => monacoEditorRef.current?.getValue() || '';
       const setContent = (content: string) => {
         if (monacoEditorRef.current) {
@@ -31,16 +42,16 @@ const CodeEditor: React.FC = () => {
         }
       };
       
-      (fileContext as any).registerEditorMethods(getContent, setContent);
+      registerEditorMethods(getContent, setContent);
     }
   }, []); // Empty dependency - register once
 
-  // Handle content updates from FileContext - stable function
+  // Handle content updates from parent - stable function
   useEffect(() => {
-    if (monacoEditorRef.current && fileContext.fileState.content !== monacoEditorRef.current.getValue()) {
-      monacoEditorRef.current.setValue(fileContext.fileState.content);
+    if (monacoEditorRef.current && fileState.content !== monacoEditorRef.current.getValue()) {
+      monacoEditorRef.current.setValue(fileState.content);
     }
-  }, [fileContext.fileState.content]); // Only depend on content
+  }, [fileState.content]); // Only depend on content
 
   // FIXED: Main editor setup with empty dependency array
   useEffect(() => {
@@ -160,7 +171,7 @@ const CodeEditor: React.FC = () => {
 
     // Create the editor
     monacoEditorRef.current = monaco.editor.create(editorRef.current, {
-      value: fileContext.fileState.content,
+      value: fileState.content,
       language: 'rhai',
       theme: 'dracula',
       fontSize: 14,
@@ -183,8 +194,8 @@ const CodeEditor: React.FC = () => {
     const changeListener = monacoEditorRef.current.onDidChangeModelContent(() => {
       const code = monacoEditorRef.current?.getValue() || '';
       
-      // Update file context with new content
-      fileContext.updateContent(code);
+      // Update file state with new content
+      onContentUpdate(code);
       
       // Trigger compilation
       debouncedCompile(code);
@@ -211,20 +222,20 @@ const CodeEditor: React.FC = () => {
       <div className="h-8 bg-gray-800 border-b border-gray-700 flex items-center px-3">
         <div className="flex items-center space-x-2">
           <span className="text-sm text-gray-300 font-medium">
-            {fileContext.fileState.currentFilePath 
-              ? fileContext.fileState.currentFilePath.split('/').pop()?.replace('.horsi', '') || 'Untitled'
+            {fileState.currentFilePath 
+              ? fileState.currentFilePath.split('/').pop()?.replace('.horsi', '') || 'Untitled'
               : 'Untitled'
             }
-            {fileContext.fileState.isModified && <span className="text-yellow-400">*</span>}
+            {fileState.isModified && <span className="text-yellow-400">*</span>}
           </span>
           <span className="text-xs text-gray-500">
-            {fileContext.fileState.currentFilePath ? '.horsi' : '(unsaved)'}
+            {fileState.currentFilePath ? '.horsi' : '(unsaved)'}
           </span>
         </div>
         
         {/* File Status */}
         <div className="ml-4 flex items-center space-x-2">
-          {fileContext.fileState.isLoading && (
+          {fileState.isLoading && (
             <div className="flex items-center space-x-1">
               <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
               <span className="text-xs text-blue-400">Loading...</span>

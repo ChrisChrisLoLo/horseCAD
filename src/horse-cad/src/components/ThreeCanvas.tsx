@@ -1,10 +1,14 @@
 import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three-stdlib';
-import { useMesh } from '../contexts/MeshContext';
 import { STLParser } from '../utils/stlParser';
+import { MeshData } from '../App';
 
-const ThreeCanvas: React.FC = () => {
+interface ThreeCanvasProps {
+  meshData: MeshData | null;
+}
+
+const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ meshData }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -16,7 +20,6 @@ const ThreeCanvas: React.FC = () => {
   const [fps, setFps] = useState<number>(60);
   const [showPerformance, setShowPerformance] = useState<boolean>(false);
   const fpsCounterRef = useRef<{ frames: number; lastTime: number }>({ frames: 0, lastTime: 0 });
-  const { meshData, } = useMesh();
 
   useEffect(() => {
     if (!canvasRef.current) return;
