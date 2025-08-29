@@ -248,7 +248,7 @@ const LogPanel: React.FC<LogPanelProps> = ({ compilationState, logs = [], onClea
       {/* Log content */}
       <div 
         ref={logContainerRef}
-        className="flex-1 overflow-y-auto p-2 space-y-1 text-sm font-mono"
+        className="flex-1 overflow-y-auto p-2 space-y-1 text-xs font-mono"
       >
         {filteredLogs.length === 0 ? (
           <div className="text-muted-foreground text-center py-4">
@@ -260,10 +260,10 @@ const LogPanel: React.FC<LogPanelProps> = ({ compilationState, logs = [], onClea
               key={log.id}
               className={cn(
                 "flex items-start space-x-2 p-2 rounded-md transition-colors hover:bg-muted/50",
-                log.level === 'error' && "bg-destructive/10",
-                log.level === 'warning' && "bg-yellow-500/10",
-                log.level === 'info' && "bg-blue-500/10",
-                log.level === 'debug' && "bg-muted/20"
+                log.level === 'error' && "bg-red-900/30",
+                log.level === 'warning' && "bg-yellow-900/30",
+                log.level === 'info' && "bg-slate-900/30",
+                log.level === 'debug' && "bg-neutral-900/30"
               )}
             >
               {/* Timestamp */}
@@ -299,8 +299,8 @@ const LogPanel: React.FC<LogPanelProps> = ({ compilationState, logs = [], onClea
                 "flex-1",
                 log.level === 'error' && "text-red-400",
                 log.level === 'warning' && "text-yellow-400",
-                log.level === 'info' && "text-blue-400",
-                log.level === 'debug' && "text-muted-foreground",
+                log.level === 'info' && "text-slate-400",
+                log.level === 'debug' && "text-neutral-400",
                 !['error', 'warning', 'info', 'debug'].includes(log.level) && "text-foreground"
               )}>
                 {log.message}

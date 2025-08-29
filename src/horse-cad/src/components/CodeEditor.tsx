@@ -175,7 +175,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     monacoEditorRef.current = monaco.editor.create(editorRef.current, {
       value: fileState.content,
       language: 'rhai',
-      theme: 'dracula',
+      theme: 'github-dark-default',
       fontSize: 14,
       minimap: { enabled: true },
       scrollBeyondLastLine: false,

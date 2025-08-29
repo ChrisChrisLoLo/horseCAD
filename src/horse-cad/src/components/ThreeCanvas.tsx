@@ -3,6 +3,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three-stdlib';
 import { STLParser } from '../utils/stlParser';
 import { MeshData } from '../App';
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface ThreeCanvasProps {
   meshData: MeshData | null;
@@ -139,7 +142,7 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ meshData }) => {
       // Get the container dimensions (excluding the header)
       const container = containerRef.current;
       const width = container.clientWidth;
-      const height = container.clientHeight - 32; // Subtract header height (2rem = 32px)
+      const height = container.clientHeight - 40; // Subtract header height (2.5rem = 40px)
 
       // Update camera aspect ratio
       camera.aspect = width / height;
@@ -269,90 +272,107 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ meshData }) => {
   };
 
   return (
-    <div ref={containerRef} className="h-full w-full relative bg-gray-900">
-      <div className="absolute top-0 left-0 right-0 h-8 bg-gray-800 border-b border-gray-700 flex items-center px-3 z-10">
-        <span className="text-sm text-gray-300 font-medium">3D Viewport</span>
+    <div ref={containerRef} className="h-full w-full relative bg-background">
+      <div className="absolute top-0 left-0 right-0 h-10 bg-card border-b border-border flex items-center px-3 z-10">
+        <span className="text-sm font-medium text-foreground">3D Viewport</span>
         
         {/* View Controls */}
         <div className="ml-4 flex items-center space-x-1">
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={resetCamera}
-            className="px-2 py-0.5 text-xs bg-gray-700 text-gray-200 rounded hover:bg-gray-600 transition-colors"
+            className="h-6 px-2 text-xs"
             title="Reset Camera"
           >
             Reset
-          </button>
+          </Button>
           
           <div className="flex items-center space-x-0.5">
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setViewPreset('top')}
-              className="px-1.5 py-0.5 text-xs bg-gray-700 text-gray-200 rounded hover:bg-gray-600 transition-colors"
+              className="h-6 w-6 p-0 text-xs"
               title="Top View"
             >
               T
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setViewPreset('front')}
-              className="px-1.5 py-0.5 text-xs bg-gray-700 text-gray-200 rounded hover:bg-gray-600 transition-colors"
+              className="h-6 w-6 p-0 text-xs"
               title="Front View"
             >
               F
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setViewPreset('right')}
-              className="px-1.5 py-0.5 text-xs bg-gray-700 text-gray-200 rounded hover:bg-gray-600 transition-colors"
+              className="h-6 w-6 p-0 text-xs"
               title="Right View"
             >
               R
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setViewPreset('isometric')}
-              className="px-1.5 py-0.5 text-xs bg-gray-700 text-gray-200 rounded hover:bg-gray-600 transition-colors"
+              className="h-6 w-6 p-0 text-xs"
               title="Isometric View"
             >
               ISO
-            </button>
+            </Button>
           </div>
         </div>
 
         <div className="ml-auto flex items-center space-x-2">
           {/* Mesh Info */}
           {meshData && (
-            <div className="flex items-center space-x-1">
-              <div className="w-2 h-2 bg-blue-400 rounded-full" />
-              <span className="text-xs text-blue-400">
-                {meshData.triangleCount.toLocaleString()} triangles
-              </span>
-            </div>
+            <Badge variant="outline" className="text-xs">
+              <div className="w-2 h-2 bg-blue-500 rounded-full mr-1" />
+              {meshData.triangleCount.toLocaleString()} triangles
+            </Badge>
           )}
           
           {/* Performance Toggle */}
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setShowPerformance(!showPerformance)}
-            className="text-xs text-gray-400 hover:text-gray-300 transition-colors"
+            className="h-6 px-2 text-xs"
             title="Toggle Performance Info"
           >
             {showPerformance ? `${fps} FPS` : 'WebGL'}
-          </button>
+          </Button>
           
           {/* Performance Indicator */}
           {showPerformance && (
-            <div className="flex items-center space-x-1">
-              <div className={`w-2 h-2 rounded-full ${
-                fps > 50 ? 'bg-green-400' : 
-                fps > 30 ? 'bg-yellow-400' : 
-                'bg-red-400'
-              }`} />
-              <span className="text-xs text-gray-400">
-                {fps < 30 ? 'Performance Mode' : 'Smooth'}
-              </span>
-            </div>
+            <Badge 
+              variant="outline" 
+              className={cn(
+                "text-xs",
+                fps > 50 && "border-green-500 text-green-500",
+                fps > 30 && fps <= 50 && "border-yellow-500 text-yellow-500",
+                fps <= 30 && "border-red-500 text-red-500"
+              )}
+            >
+              <div className={cn(
+                "w-2 h-2 rounded-full mr-1",
+                fps > 50 && "bg-green-500",
+                fps > 30 && fps <= 50 && "bg-yellow-500",
+                fps <= 30 && "bg-red-500"
+              )} />
+              {fps < 30 ? 'Performance Mode' : 'Smooth'}
+            </Badge>
           )}
         </div>
       </div>
       <canvas
         ref={canvasRef}
-        className="absolute top-8 left-0 w-full h-[calc(100%-2rem)] block"
+        className="absolute top-10 left-0 w-full h-[calc(100%-2.5rem)] block"
         style={{ display: 'block' }}
       />
     </div>
