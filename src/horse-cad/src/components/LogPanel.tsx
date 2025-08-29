@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { CompilationState } from '../App';
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 export interface LogEntry {
   id: number;
@@ -194,51 +197,51 @@ const LogPanel: React.FC<LogPanelProps> = ({ compilationState, logs = [], onClea
   };
 
   return (
-    <div className="h-full w-full bg-gray-900 flex flex-col">
+    <div className="h-full w-full bg-background flex flex-col">
       {/* Header */}
-      <div className="h-8 bg-gray-800 border-b border-gray-700 flex items-center px-3">
-        <span className="text-sm text-gray-300 font-medium">Console</span>
+      <div className="h-10 bg-card border-b border-border flex items-center px-3">
+        <span className="text-sm font-medium text-foreground">Console</span>
         
         {/* Compilation Status */}
         <div className="ml-4 flex items-center space-x-2">
           {compilationState.isCompiling && (
-            <div className="flex items-center space-x-1">
-              <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
-              <span className="text-xs text-yellow-400">Compiling...</span>
-            </div>
+            <Badge variant="outline" className="text-xs">
+              <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse mr-1" />
+              Compiling
+            </Badge>
           )}
         </div>
         
         {/* Filter buttons */}
         <div className="ml-4 flex items-center space-x-1">
           {(['all', 'info', 'warning', 'error', 'debug'] as const).map((level) => (
-            <button
+            <Button
               key={level}
+              variant={filter === level ? "default" : "ghost"}
+              size="sm"
               onClick={() => setFilter(level)}
-              className={`px-2 py-0.5 text-xs rounded transition-colors ${
-                filter === level
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700 text-gray-200 hover:bg-gray-600 hover:text-white'
-              }`}
+              className="h-6 px-2 text-xs"
             >
               {level.charAt(0).toUpperCase() + level.slice(1)}
               {level !== 'all' && (
-                <span className="ml-1 text-xs opacity-75">
-                  ({displayLogs.filter(log => log.level === level).length})
-                </span>
+                <Badge variant="secondary" className="ml-1 text-xs h-4 px-1">
+                  {displayLogs.filter(log => log.level === level).length}
+                </Badge>
               )}
-            </button>
+            </Button>
           ))}
         </div>
 
         {/* Action buttons */}
         <div className="ml-auto flex items-center space-x-2">
-          <button
+          <Button
+            variant="destructive"
+            size="sm"
             onClick={handleClear}
-            className="px-2 py-0.5 text-xs bg-red-700 text-white rounded hover:bg-red-600 transition-colors"
+            className="h-6 px-2 text-xs"
           >
             Clear
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -248,40 +251,58 @@ const LogPanel: React.FC<LogPanelProps> = ({ compilationState, logs = [], onClea
         className="flex-1 overflow-y-auto p-2 space-y-1 text-sm font-mono"
       >
         {filteredLogs.length === 0 ? (
-          <div className="text-gray-500 text-center py-4">
+          <div className="text-muted-foreground text-center py-4">
             No logs to display
           </div>
         ) : (
           filteredLogs.map((log) => (
             <div
               key={log.id}
-              className={`flex items-start space-x-2 p-2 rounded ${getLogLevelBg(log.level)} hover:bg-gray-700/30 transition-colors`}
+              className={cn(
+                "flex items-start space-x-2 p-2 rounded-md transition-colors hover:bg-muted/50",
+                log.level === 'error' && "bg-destructive/10",
+                log.level === 'warning' && "bg-yellow-500/10",
+                log.level === 'info' && "bg-blue-500/10",
+                log.level === 'debug' && "bg-muted/20"
+              )}
             >
               {/* Timestamp */}
-              <span className="text-gray-500 text-xs whitespace-nowrap">
+              <span className="text-muted-foreground text-xs whitespace-nowrap">
                 {formatTime(log.timestamp)}
               </span>
               
               {/* Level badge */}
-              <span className={`text-xs font-semibold uppercase px-1.5 py-0.5 rounded whitespace-nowrap ${
-                log.level === 'error' ? 'text-red-200 bg-red-900/40' :
-                log.level === 'warning' ? 'text-yellow-200 bg-yellow-900/40' :
-                log.level === 'info' ? 'text-cyan-200 bg-cyan-900/40' :
-                log.level === 'debug' ? 'text-gray-200 bg-gray-700/40' :
-                'text-gray-200 bg-gray-700/40'
-              }`}>
+              <Badge 
+                variant={
+                  log.level === 'error' ? 'destructive' :
+                  log.level === 'warning' ? 'outline' :
+                  log.level === 'info' ? 'default' :
+                  'secondary'
+                }
+                className={cn(
+                  "text-xs uppercase whitespace-nowrap",
+                  log.level === 'warning' && "border-yellow-500 text-yellow-600 dark:text-yellow-400"
+                )}
+              >
                 {log.level}
-              </span>
+              </Badge>
               
               {/* Source */}
               {log.source && (
-                <span className="text-gray-400 text-xs whitespace-nowrap">
-                  [{log.source}]
-                </span>
+                <Badge variant="outline" className="text-xs">
+                  {log.source}
+                </Badge>
               )}
               
               {/* Message */}
-              <span className={`flex-1 ${getLogLevelColor(log.level)}`}>
+              <span className={cn(
+                "flex-1",
+                log.level === 'error' && "text-red-400",
+                log.level === 'warning' && "text-yellow-400",
+                log.level === 'info' && "text-blue-400",
+                log.level === 'debug' && "text-muted-foreground",
+                !['error', 'warning', 'info', 'debug'].includes(log.level) && "text-foreground"
+              )}>
                 {log.message}
               </span>
             </div>

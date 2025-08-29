@@ -2,6 +2,8 @@ import React, { useRef, useEffect, useCallback } from 'react';
 import * as monaco from 'monaco-editor';
 import { initMonacoThemes } from '../utils/monacoThemes';
 import { FileState, CompilationState } from '../App';
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface CodeEditorProps {
   fileState: FileState;
@@ -219,57 +221,55 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 
   return (
     <div className="h-full w-full">
-      <div className="h-8 bg-gray-800 border-b border-gray-700 flex items-center px-3">
+      <div className="h-10 bg-card border-b border-border flex items-center px-3">
         <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-300 font-medium">
+          <span className="text-sm font-medium text-foreground">
             {fileState.currentFilePath 
               ? fileState.currentFilePath.split('/').pop()?.replace('.horsi', '') || 'Untitled'
               : 'Untitled'
             }
-            {fileState.isModified && <span className="text-yellow-400">*</span>}
+            {fileState.isModified && <span className="text-yellow-500">*</span>}
           </span>
-          <span className="text-xs text-gray-500">
-            {fileState.currentFilePath ? '.horsi' : '(unsaved)'}
-          </span>
+          <Badge variant="secondary" className="text-xs">
+            {fileState.currentFilePath ? '.horsi' : 'unsaved'}
+          </Badge>
         </div>
         
         {/* File Status */}
         <div className="ml-4 flex items-center space-x-2">
           {fileState.isLoading && (
-            <div className="flex items-center space-x-1">
-              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
-              <span className="text-xs text-blue-400">Loading...</span>
-            </div>
+            <Badge variant="outline" className="text-xs">
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse mr-1" />
+              Loading
+            </Badge>
           )}
         </div>
         
         {/* Compilation Status */}
         <div className="ml-auto flex items-center space-x-2">
           {compilationState.isCompiling && (
-            <div className="flex items-center space-x-1">
-              <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
-              <span className="text-xs text-yellow-400">Compiling...</span>
-            </div>
+            <Badge variant="outline" className="text-xs">
+              <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse mr-1" />
+              Compiling
+            </Badge>
           )}
           
           {compilationState.error && (
-            <div className="flex items-center space-x-1">
-              <div className="w-2 h-2 bg-red-400 rounded-full" />
-              <span className="text-xs text-red-400" title={compilationState.error}>
-                Error
-              </span>
-            </div>
+            <Badge variant="destructive" className="text-xs" title={compilationState.error}>
+              <div className="w-2 h-2 bg-white rounded-full mr-1" />
+              Error
+            </Badge>
           )}
           
           {!compilationState.isCompiling && !compilationState.error && compilationState.lastCompiled > 0 && (
-            <div className="flex items-center space-x-1">
-              <div className="w-2 h-2 bg-green-400 rounded-full" />
-              <span className="text-xs text-green-400">Ready</span>
-            </div>
+            <Badge variant="outline" className="text-xs border-green-500 text-green-500">
+              <div className="w-2 h-2 bg-green-500 rounded-full mr-1" />
+              Ready
+            </Badge>
           )}
         </div>
       </div>
-      <div ref={editorRef} className="h-[calc(100%-2rem)] w-full" />
+      <div ref={editorRef} className="h-[calc(100%-2.5rem)] w-full" />
     </div>
   );
 };
