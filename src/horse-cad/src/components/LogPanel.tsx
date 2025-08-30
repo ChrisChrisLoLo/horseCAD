@@ -149,36 +149,6 @@ const LogPanel: React.FC<LogPanelProps> = ({ compilationState, logs = [], onClea
     filter === 'all' || log.level === filter
   );
 
-  const getLogLevelColor = (level: LogEntry['level']) => {
-    switch (level) {
-      case 'error':
-        return 'text-red-300';
-      case 'warning':
-        return 'text-yellow-300';
-      case 'info':
-        return 'text-cyan-300';
-      case 'debug':
-        return 'text-gray-300';
-      default:
-        return 'text-gray-200';
-    }
-  };
-
-  const getLogLevelBg = (level: LogEntry['level']) => {
-    switch (level) {
-      case 'error':
-        return 'bg-red-900/20';
-      case 'warning':
-        return 'bg-yellow-900/20';
-      case 'info':
-        return 'bg-blue-900/20';
-      case 'debug':
-        return 'bg-gray-900/20';
-      default:
-        return 'bg-gray-800/20';
-    }
-  };
-
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('en-US', { 
       hour12: false,
@@ -217,14 +187,14 @@ const LogPanel: React.FC<LogPanelProps> = ({ compilationState, logs = [], onClea
           {(['all', 'info', 'warning', 'error', 'debug'] as const).map((level) => (
             <Button
               key={level}
-              variant={filter === level ? "default" : "ghost"}
+              variant={filter === level ? "default" : "outline"}
               size="sm"
               onClick={() => setFilter(level)}
               className="h-6 px-2 text-xs"
             >
               {level.charAt(0).toUpperCase() + level.slice(1)}
               {level !== 'all' && (
-                <Badge variant="secondary" className="ml-1 text-xs h-4 px-1">
+                <Badge variant="secondary" className="ml-0 text-xs h-4 px-1">
                   {displayLogs.filter(log => log.level === level).length}
                 </Badge>
               )}

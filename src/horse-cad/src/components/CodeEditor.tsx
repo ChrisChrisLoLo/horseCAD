@@ -3,7 +3,6 @@ import * as monaco from 'monaco-editor';
 import { initMonacoThemes } from '../utils/monacoThemes';
 import { FileState, CompilationState } from '../App';
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 
 interface CodeEditorProps {
   fileState: FileState;

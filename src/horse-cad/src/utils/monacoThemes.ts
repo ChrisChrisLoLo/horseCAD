@@ -433,10 +433,7 @@ export function initMonacoThemes() {
                 "fontStyle": "bold"
             },
             {
-                "token": [
-                    "markup.heading",
-                    "markup.heading entity.name"
-                ],
+                "token": "markup.heading entity.name",
                 "foreground": "79C0FF",
                 "fontStyle": "bold"
             },

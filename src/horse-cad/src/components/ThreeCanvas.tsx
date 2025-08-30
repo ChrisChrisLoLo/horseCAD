@@ -29,7 +29,7 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ meshData }) => {
 
     // Scene setup
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1a1a1a);
+    scene.background = new THREE.Color(0x171717);
     sceneRef.current = scene;
 
     // Camera setup
@@ -67,9 +67,9 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ meshData }) => {
     rendererRef.current = renderer;
 
     // Lighting
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(ambientLight);
-
+    
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
     directionalLight.position.set(10, 10, 5);
     directionalLight.castShadow = true;
@@ -213,6 +213,11 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ meshData }) => {
       const newMesh = STLParser.createMeshFromSTL(meshData.stlData);
       newMesh.castShadow = true;
       newMesh.receiveShadow = true;
+      newMesh.material = new THREE.MeshLambertMaterial({
+        color: 0xf97316,
+        transparent: true,
+        opacity: 0.9
+      });
 
       // Add to scene
       sceneRef.current.add(newMesh);
@@ -279,7 +284,7 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ meshData }) => {
         {/* View Controls */}
         <div className="ml-4 flex items-center space-x-1">
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={resetCamera}
             className="h-6 px-2 text-xs"
@@ -290,7 +295,7 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ meshData }) => {
           
           <div className="flex items-center space-x-0.5">
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => setViewPreset('top')}
               className="h-6 w-6 p-0 text-xs"
@@ -299,7 +304,7 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ meshData }) => {
               T
             </Button>
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => setViewPreset('front')}
               className="h-6 w-6 p-0 text-xs"
@@ -308,7 +313,7 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ meshData }) => {
               F
             </Button>
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => setViewPreset('right')}
               className="h-6 w-6 p-0 text-xs"
@@ -317,7 +322,7 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ meshData }) => {
               R
             </Button>
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => setViewPreset('isometric')}
               className="h-6 w-6 p-0 text-xs"
@@ -339,7 +344,7 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ meshData }) => {
           
           {/* Performance Toggle */}
           <Button
-            variant="ghost"
+            variant="default"
             size="sm"
             onClick={() => setShowPerformance(!showPerformance)}
             className="h-6 px-2 text-xs"
