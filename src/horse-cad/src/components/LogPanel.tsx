@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { listen } from '@tauri-apps/api/event';
-import { CompilationState } from '../App';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -14,12 +13,11 @@ export interface LogEntry {
 }
 
 interface LogPanelProps {
-  compilationState: CompilationState;
   logs?: LogEntry[];
   onClear?: () => void;
 }
 
-const LogPanel: React.FC<LogPanelProps> = ({ compilationState, logs = [], onClear }) => {
+const LogPanel: React.FC<LogPanelProps> = ({ logs = [], onClear }) => {
   const [internalLogs, setInternalLogs] = useState<LogEntry[]>([
     {
       id: 1,
@@ -112,28 +110,7 @@ const LogPanel: React.FC<LogPanelProps> = ({ compilationState, logs = [], onClea
     };
   }, []);
 
-  // Add compilation state changes to logs
-  useEffect(() => {
-    if (compilationState.error) {
-      const errorLog: LogEntry = {
-        id: Date.now() + Math.random(),
-        timestamp: new Date(),
-        level: 'error',
-        message: compilationState.error,
-        source: 'Compiler'
-      };
-      setInternalLogs(prev => [...prev, errorLog]);
-    } else if (!compilationState.isCompiling) {
-      const successLog: LogEntry = {
-        id: Date.now() + Math.random(),
-        timestamp: new Date(),
-        level: 'info',
-        message: 'Script compiled successfully',
-        source: 'Compiler'
-      };
-      setInternalLogs(prev => [...prev, successLog]);
-    }
-  }, [compilationState.error, compilationState.isCompiling]);
+  // Note: Compilation state logging is now handled by the CodeEditor component
 
   // Use provided logs or internal logs
   const displayLogs = logs.length > 0 ? logs : internalLogs;
@@ -172,15 +149,7 @@ const LogPanel: React.FC<LogPanelProps> = ({ compilationState, logs = [], onClea
       <div className="h-10 bg-card border-b border-border flex items-center px-3">
         <span className="text-sm font-medium text-foreground">Console</span>
         
-        {/* Compilation Status */}
-        <div className="ml-4 flex items-center space-x-2">
-          {compilationState.isCompiling && (
-            <Badge variant="outline" className="text-xs">
-              <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse mr-1" />
-              Compiling
-            </Badge>
-          )}
-        </div>
+        {/* Note: Compilation status is now shown in the CodeEditor header */}
         
         {/* Filter buttons */}
         <div className="ml-4 flex items-center space-x-1">

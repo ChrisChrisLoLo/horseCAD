@@ -12,8 +12,8 @@ export interface MeshData {
 }
 
 export interface CompilationState {
-  isCompiling: boolean;
-  error: string | null;
+  status: 'ready' | 'compiling' | 'cancelled' | 'error' | 'succeeded';
+  error?: string;
 }
 
 export interface FileState {
@@ -44,8 +44,8 @@ function App() {
   // Mesh state
   const [meshData, setMeshData] = useState<MeshData | null>(null);
   const [compilationState, setCompilationState] = useState<CompilationState>({
-    isCompiling: false,
-    error: null,
+    status: 'ready',
+    error: undefined,
   });
 
   // Editor content management
@@ -206,24 +206,6 @@ function App() {
     scale: number = 1.0,
     center: [number, number, number] = [0, 0, 0]
   ) => {
-    // Use functional state update to check if compilation is already in progress
-    let shouldProceed = false;
-    setCompilationState(prev => {
-      if (prev.isCompiling) {
-        return prev; // Return unchanged state - compilation already in progress
-      }
-      shouldProceed = true;
-      return {
-        ...prev,
-        isCompiling: true,
-        error: null,
-      };
-    });
-
-    if (!shouldProceed) {
-      return; // Exit early if compilation is already in progress
-    }
-
     try {
       const result = await invoke<{
         success: boolean;
@@ -253,20 +235,18 @@ function App() {
         };
 
         setMeshData(newMeshData);
-        setCompilationState(prev => ({
-          ...prev,
-          isCompiling: false,
-          error: null,
-        }));
+        setCompilationState({
+          status: 'succeeded',
+          error: undefined,
+        });
       } else {
         throw new Error(result.error || 'Compilation failed without a specific error message');
       }
     } catch (error) {
-      setCompilationState(prev => ({
-        ...prev,
-        isCompiling: false,
+      setCompilationState({
+        status: 'error',
         error: (error as Error).message || 'An unknown error occurred during compilation',
-      }));
+      });
       console.error('Error during compilation: ', error);
     }
   }, []);
@@ -321,7 +301,6 @@ function App() {
       
       // Mesh props
       meshData={meshData}
-      compilationState={compilationState}
       onCompileRequest={compileScript}
     />
   );

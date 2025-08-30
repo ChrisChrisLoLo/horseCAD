@@ -2,7 +2,7 @@ import React from 'react';
 import CodeEditor from './CodeEditor';
 import ThreeCanvas from './ThreeCanvas';
 import LogPanel from './LogPanel';
-import { FileState, MeshData, CompilationState } from '../App';
+import { FileState, MeshData } from '../App';
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -17,7 +17,6 @@ interface LayoutProps {
   
   // Mesh props
   meshData: MeshData | null;
-  compilationState: CompilationState;
   onCompileRequest: (code: string, depth?: number, scale?: number, center?: [number, number, number]) => Promise<void>;
 }
 
@@ -26,7 +25,6 @@ const Layout: React.FC<LayoutProps> = ({
   onContentUpdate,
   registerEditorMethods,
   meshData,
-  compilationState,
   onCompileRequest,
 }) => {
   return (
@@ -38,7 +36,6 @@ const Layout: React.FC<LayoutProps> = ({
             fileState={fileState}
             onContentUpdate={onContentUpdate}
             registerEditorMethods={registerEditorMethods}
-            compilationState={compilationState}
             onCompileRequest={onCompileRequest}
           />
         </ResizablePanel>
@@ -57,7 +54,7 @@ const Layout: React.FC<LayoutProps> = ({
             
             {/* Log Panel */}
             <ResizablePanel defaultSize={30} minSize={20}>
-              <LogPanel compilationState={compilationState} />
+              <LogPanel />
             </ResizablePanel>
           </ResizablePanelGroup>
         </ResizablePanel>

@@ -1,14 +1,19 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import * as monaco from 'monaco-editor';
 import { initMonacoThemes } from '../utils/monacoThemes';
-import { FileState, CompilationState } from '../App';
+import { FileState } from '../App';
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+
+interface CompilationState {
+  status: 'ready' | 'compiling' | 'cancelled' | 'error' | 'succeeded';
+  error?: string;
+}
 
 interface CodeEditorProps {
   fileState: FileState;
   onContentUpdate: (content: string) => void;
   registerEditorMethods: (getter: () => string, setter: (content: string) => void) => void;
-  compilationState: CompilationState;
   onCompileRequest: (code: string, depth?: number, scale?: number, center?: [number, number, number]) => Promise<void>;
 }
 
@@ -16,22 +21,42 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   fileState,
   onContentUpdate,
   registerEditorMethods,
-  compilationState,
   onCompileRequest,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const monacoEditorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
-  const debounceTimeoutRef = useRef<number | null>(null);
+  
+  // Local compilation state
+  const [compilationState, setCompilationState] = useState<CompilationState>({
+    status: 'ready',
+    error: undefined,
+  });
 
-  const debouncedCompile = useCallback((code: string) => {
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
+  // Handle compilation with local state management
+  const handleCompile = useCallback(async (code: string, depth: number ) => {
+    setCompilationState({ status: 'compiling', error: undefined });
+    try {
+      await onCompileRequest(code, depth);
+      setCompilationState({ status: 'succeeded', error: undefined });
+    } catch (error) {
+      setCompilationState({ 
+        status: 'error', 
+        error: (error as Error).message || 'Compilation failed' 
+      });
     }
+  }, []);
 
-    debounceTimeoutRef.current = window.setTimeout(() => {
-      onCompileRequest(code);
-    }, 750); // 750ms debounce
-  }, [onCompileRequest]);
+  // Fast render handler
+  const handleFastRender = useCallback(() => {
+    const code = monacoEditorRef.current?.getValue() || '';
+    handleCompile(code, 3);
+  }, []);
+
+  // Full render handler
+  const handleFullRender = useCallback(() => {
+    const code = monacoEditorRef.current?.getValue() || '';
+    handleCompile(code, 6);
+  }, []);
 
   // Register editor methods with parent - stable function
   useEffect(() => {
@@ -191,15 +216,12 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       tabCompletion: 'on',
     });
 
-    // Add change listener for debounced compilation and file state updates
+    // Add change listener for file state updates only
     const changeListener = monacoEditorRef.current.onDidChangeModelContent(() => {
       const code = monacoEditorRef.current?.getValue() || '';
       
       // Update file state with new content
       onContentUpdate(code);
-      
-      // Trigger compilation
-      debouncedCompile(code);
     });
 
     // Focus the editor
@@ -207,7 +229,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 
     // Trigger initial compilation
     const initialCode = monacoEditorRef.current.getValue();
-    debouncedCompile(initialCode);
+    handleCompile(initialCode, 6);
 
     // Cleanup
     return () => {
@@ -244,26 +266,60 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
           )}
         </div>
         
-        {/* Compilation Status */}
+        {/* Render Buttons */}
         <div className="ml-auto flex items-center space-x-2">
-          {compilationState.isCompiling && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleFastRender}
+            disabled={compilationState.status === 'compiling'}
+            className="h-7 px-3 text-xs"
+          >
+            Fast Render
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleFullRender}
+            disabled={compilationState.status === 'compiling'}
+            className="h-7 px-3 text-xs"
+          >
+            Full Render
+          </Button>
+          
+          {/* Compilation Status */}
+          {compilationState.status === 'compiling' && (
             <Badge variant="outline" className="text-xs">
               <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse mr-1" />
               Compiling
             </Badge>
           )}
           
-          {compilationState.error && (
+          {compilationState.status === 'error' && (
             <Badge variant="destructive" className="text-xs" title={compilationState.error}>
               <div className="w-2 h-2 bg-white rounded-full mr-1" />
               Error
             </Badge>
           )}
           
-          {!compilationState.isCompiling && !compilationState.error && (
+          {compilationState.status === 'succeeded' && (
             <Badge variant="outline" className="text-xs border-green-500 text-green-500">
               <div className="w-2 h-2 bg-green-500 rounded-full mr-1" />
+              Succeeded
+            </Badge>
+          )}
+          
+          {compilationState.status === 'ready' && (
+            <Badge variant="outline" className="text-xs border-blue-500 text-blue-500">
+              <div className="w-2 h-2 bg-blue-500 rounded-full mr-1" />
               Ready
+            </Badge>
+          )}
+          
+          {compilationState.status === 'cancelled' && (
+            <Badge variant="outline" className="text-xs border-orange-500 text-orange-500">
+              <div className="w-2 h-2 bg-orange-500 rounded-full mr-1" />
+              Cancelled
             </Badge>
           )}
         </div>
