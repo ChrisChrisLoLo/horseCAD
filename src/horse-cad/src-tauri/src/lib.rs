@@ -8,14 +8,16 @@ use fidget::{
     rhai::FromDynamic,
     vm::VmShape,
 };
-use nalgebra::{Scale3, Translation3};
+use nalgebra::{Scale3};
 use rhai::{Dynamic, EvalAltResult, NativeCallContext};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::Path;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter};
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri_plugin_dialog::{DialogExt};
+
+mod utils;
+use utils::log_utils::prettify_byte_count;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LogEntry {
@@ -127,7 +129,7 @@ async fn compile_script(
     emit_log(&app_handle, "info", "Exporting STL data", Some("Export"));
     let stl_data = match export_mesh_to_stl(&mesh) {
         Ok(data) => {
-            emit_log(&app_handle, "info", &format!("STL export complete ({} bytes)", data.len()), Some("Export"));
+            emit_log(&app_handle, "info", &format!("STL export complete ({})", prettify_byte_count(data.len() as u64)), Some("Export"));
             data
         }
         Err(e) => {
