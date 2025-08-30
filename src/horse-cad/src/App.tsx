@@ -14,7 +14,6 @@ export interface MeshData {
 export interface CompilationState {
   isCompiling: boolean;
   error: string | null;
-  lastCompiled: number;
 }
 
 export interface FileState {
@@ -47,7 +46,6 @@ function App() {
   const [compilationState, setCompilationState] = useState<CompilationState>({
     isCompiling: false,
     error: null,
-    lastCompiled: 0,
   });
 
   // Editor content management
@@ -259,7 +257,6 @@ function App() {
           ...prev,
           isCompiling: false,
           error: null,
-          lastCompiled: Date.now(),
         }));
       } else {
         throw new Error(result.error || 'Compilation failed without a specific error message');

@@ -260,7 +260,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
             </Badge>
           )}
           
-          {!compilationState.isCompiling && !compilationState.error && compilationState.lastCompiled > 0 && (
+          {!compilationState.isCompiling && !compilationState.error && (
             <Badge variant="outline" className="text-xs border-green-500 text-green-500">
               <div className="w-2 h-2 bg-green-500 rounded-full mr-1" />
               Ready

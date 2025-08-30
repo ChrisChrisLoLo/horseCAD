@@ -123,7 +123,7 @@ const LogPanel: React.FC<LogPanelProps> = ({ compilationState, logs = [], onClea
         source: 'Compiler'
       };
       setInternalLogs(prev => [...prev, errorLog]);
-    } else if (compilationState.lastCompiled > 0 && !compilationState.isCompiling) {
+    } else if (!compilationState.isCompiling) {
       const successLog: LogEntry = {
         id: Date.now() + Math.random(),
         timestamp: new Date(),
@@ -133,7 +133,7 @@ const LogPanel: React.FC<LogPanelProps> = ({ compilationState, logs = [], onClea
       };
       setInternalLogs(prev => [...prev, successLog]);
     }
-  }, [compilationState.error, compilationState.lastCompiled, compilationState.isCompiling]);
+  }, [compilationState.error, compilationState.isCompiling]);
 
   // Use provided logs or internal logs
   const displayLogs = logs.length > 0 ? logs : internalLogs;
