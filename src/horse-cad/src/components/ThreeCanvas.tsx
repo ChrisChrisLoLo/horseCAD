@@ -45,9 +45,9 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ meshData }) => {
 
     // OrbitControls setup
     const controls = new OrbitControls(camera, canvasRef.current);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.screenSpacePanning = false;
+    controls.enableDamping = false;
+    // controls.dampingFactor = 0.10;
+    controls.screenSpacePanning = true;
     controls.minDistance = 0.1;
     controls.maxDistance = 1000;
     controls.maxPolarAngle = Math.PI;

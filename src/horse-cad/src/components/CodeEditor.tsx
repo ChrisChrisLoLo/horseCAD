@@ -4,6 +4,8 @@ import { initMonacoThemes } from '../utils/monacoThemes';
 import { FileState } from '../App';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { listen } from '@tauri-apps/api/event';
+import { Box, Boxes, FastForward, Hourglass } from 'lucide-react';
 
 interface CompilationState {
   status: 'ready' | 'compiling' | 'cancelled' | 'error' | 'succeeded';
@@ -15,6 +17,14 @@ interface CodeEditorProps {
   onContentUpdate: (content: string) => void;
   registerEditorMethods: (getter: () => string, setter: (content: string) => void) => void;
   onCompileRequest: (code: string, depth?: number, scale?: number, center?: [number, number, number]) => Promise<void>;
+}
+
+const getMonacoRefValue = (ref: React.RefObject<monaco.editor.IStandaloneCodeEditor | null>) => {
+  const monacoCodeValue = ref.current?.getValue();
+  if (monacoCodeValue === undefined) {
+    throw new Error('Monaco editor instance is not available yet!');
+  }
+  return monacoCodeValue;
 }
 
 const CodeEditor: React.FC<CodeEditorProps> = ({
@@ -48,20 +58,34 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 
   // Fast render handler
   const handleFastRender = useCallback(() => {
-    const code = monacoEditorRef.current?.getValue() || '';
+    const code = getMonacoRefValue(monacoEditorRef);
     handleCompile(code, 3);
   }, []);
 
   // Full render handler
   const handleFullRender = useCallback(() => {
-    const code = monacoEditorRef.current?.getValue() || '';
+    const code = getMonacoRefValue(monacoEditorRef);
     handleCompile(code, 6);
+  }, []);
+
+  // Listen for menu compile events
+  useEffect(() => {
+    const unlistenCompile = listen('menu_compile', () => {
+      const code = getMonacoRefValue(monacoEditorRef);
+      handleCompile(code, 6);
+    });
+
+    const unlisteners = [unlistenCompile];
+
+    return () => {
+      unlisteners.forEach(unlisten => unlisten.then(f => f()));
+    };
   }, []);
 
   // Register editor methods with parent - stable function
   useEffect(() => {
     if (monacoEditorRef.current) {
-      const getContent = () => monacoEditorRef.current?.getValue() || '';
+      const getContent = () => getMonacoRefValue(monacoEditorRef);
       const setContent = (content: string) => {
         if (monacoEditorRef.current) {
           monacoEditorRef.current.setValue(content);
@@ -238,7 +262,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
         monacoEditorRef.current.dispose();
       }
     };
-  }, []); // FIXED: Empty dependency array prevents infinite loop
+  }, []);
 
   return (
     <div className="h-full w-full">
@@ -275,7 +299,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
             disabled={compilationState.status === 'compiling'}
             className="h-7 px-3 text-xs"
           >
-            Fast Render
+            <Box className="size-4 mr-0" />
+            <FastForward className="size-4"/>
           </Button>
           <Button
             variant="default"
@@ -284,7 +309,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
             disabled={compilationState.status === 'compiling'}
             className="h-7 px-3 text-xs"
           >
-            Full Render
+            <Boxes className="size-4 mr-0" />
+            <Hourglass className="size-4"/>
           </Button>
           
           {/* Compilation Status */}

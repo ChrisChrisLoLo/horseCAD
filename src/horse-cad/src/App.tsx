@@ -280,17 +280,13 @@ function App() {
     const unlistenSave = listen('menu_save', () => saveFile());
     const unlistenSaveAs = listen('menu_save_as', () => saveFileAs());
     const unlistenExportSTL = listen('menu_export_stl', () => exportSTL());
-    const unlistenCompile = listen('menu_compile', () => {
-      const code = getEditorContentRef.current();
-      compileScript(code);
-    });
 
-    const unlisteners = [unlistenNew, unlistenOpen, unlistenSave, unlistenSaveAs, unlistenExportSTL, unlistenCompile];
+    const unlisteners = [unlistenNew, unlistenOpen, unlistenSave, unlistenSaveAs, unlistenExportSTL];
 
     return () => {
       unlisteners.forEach(unlisten => unlisten.then(f => f()));
     };
-  }, [newFile, openFile, saveFile, saveFileAs, exportSTL, compileScript]);
+  }, [newFile, openFile, saveFile, saveFileAs, exportSTL]);
 
   return (
     <Layout
