@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/shadCnUtils";
 
 export interface LogEntry {
   id: number;

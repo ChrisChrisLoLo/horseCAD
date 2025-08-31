@@ -5,7 +5,8 @@ import { STLParser } from '../utils/stlParser';
 import { MeshData } from '../App';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/shadCnUtils";
+import { prettyPrintBytes } from '@/utils/prettyPrintUtils';
 
 interface ThreeCanvasProps {
   meshData: MeshData | null;
@@ -29,7 +30,7 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ meshData }) => {
 
     // Scene setup
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x171717);
+    scene.background = new THREE.Color(0x262626);
     sceneRef.current = scene;
 
     // Camera setup
@@ -338,7 +339,7 @@ const ThreeCanvas: React.FC<ThreeCanvasProps> = ({ meshData }) => {
           {meshData && (
             <Badge variant="outline" className="text-xs">
               <div className="w-2 h-2 bg-blue-500 rounded-full mr-1" />
-              {meshData.triangleCount.toLocaleString()} triangles
+              {prettyPrintBytes(meshData.stlData.length)}
             </Badge>
           )}
           
