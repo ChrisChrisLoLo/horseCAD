@@ -43,7 +43,7 @@ function App() {
 
   // Mesh state
   const [meshData, setMeshData] = useState<MeshData | null>(null);
-  const [compilationState, setCompilationState] = useState<CompilationState>({
+  const [_, setCompilationState] = useState<CompilationState>({
     status: 'ready',
     error: undefined,
   });

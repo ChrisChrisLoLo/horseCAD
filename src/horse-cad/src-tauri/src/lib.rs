@@ -8,7 +8,7 @@ use fidget::{
     rhai::FromDynamic,
     vm::VmShape,
 };
-use nalgebra::{Scale3};
+use nalgebra::{Scale3, Translation3};
 use rhai::{Dynamic, EvalAltResult, NativeCallContext};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -58,13 +58,12 @@ async fn compile_script(
     scale: Option<f32>,
     center: Option<[f32; 3]>,
 ) -> Result<MeshResult, String> {
-    let scale = scale.unwrap_or(1.0);
     let center = center.unwrap_or([0.0, 0.0, 0.0]);
     
     emit_log(&app_handle, "info", "Starting script compilation", Some("Compiler"));
     
     // Compile the Rhai script
-    let (ctx, root) = match compile_rhai_script(&code) {
+    let (ctx, root, scale) = match compile_rhai_script(&code) {
         Ok(result) => {
             emit_log(&app_handle, "info", "Script compiled successfully", Some("Compiler"));
             result
@@ -103,9 +102,9 @@ async fn compile_script(
     emit_log(&app_handle, "info", &format!("Applying transformations (scale: {}, center: {:?})", scale, center), Some("Transform"));
     let s = 1.0 / scale;
     let scale_transform = Scale3::new(s, s, s);
-    // let center_transform = Translation3::new(-center[0], -center[1], -center[2]);
-    // let t = center_transform.to_homogeneous() * scale_transform.to_homogeneous();
-    // let shape = shape.apply_transform(t);
+    let center_transform = Translation3::new(-center[0], -center[1], -center[2]);
+    let t = center_transform.to_homogeneous() * scale_transform.to_homogeneous();
+    let shape = shape.apply_transform(t);
     
     // Generate mesh
     emit_log(&app_handle, "info", &format!("Building octree at depth {}", depth), Some("Mesh"));
@@ -155,11 +154,29 @@ async fn compile_script(
 }
 
 /// Compile Rhai script using fidget engine
-fn compile_rhai_script(code: &str) -> Result<(Context, fidget::context::Node)> {
+fn compile_rhai_script(code: &str) -> Result<(Context, fidget::context::Node, f32)> {
     let mut engine = fidget::rhai::engine();
     let out = Arc::new(Mutex::new(None));
     let out_clone = out.clone();
-    
+
+    let scale = Arc::new(Mutex::new(1.0_f32)); // Default scale, can be adjusted or passed as parameter if needed
+    let scale_clone = scale.clone();
+
+    engine.register_fn(
+        "set_scale",
+        move |_ctx: NativeCallContext, scale_input: Dynamic| -> Result<(), Box<EvalAltResult>> {
+            let scale_input_float = scale_input.as_float();
+            if let Ok(scale_input_float) = scale_input_float {
+                let scale_input_f32 = scale_input_float as f32;
+                let mut scale = scale_clone.lock().unwrap();
+                *scale = scale_input_f32;
+            } else {
+                return Err("scale must be a float".into());
+            }
+            Ok(())
+        },
+    );
+
     // Register the draw function
     engine.register_fn(
         "draw",
@@ -173,6 +190,7 @@ fn compile_rhai_script(code: &str) -> Result<(Context, fidget::context::Node)> {
             Ok(())
         },
     );
+
     
     // Run the script
     engine.run(code)?;
@@ -183,10 +201,15 @@ fn compile_rhai_script(code: &str) -> Result<(Context, fidget::context::Node)> {
         guard.take()
     };
     
+    let output_scale = {
+        let guard = scale.lock().unwrap();
+        *guard
+    };
+    
     if let Some(tree) = tree {
         let mut ctx = Context::new();
         let node = ctx.import(&tree);
-        Ok((ctx, node))
+        Ok((ctx, node, output_scale))
     } else {
         Err(anyhow::anyhow!("script must include a draw(tree) call"))
     }
